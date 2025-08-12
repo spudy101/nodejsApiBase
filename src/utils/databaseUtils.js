@@ -1,3 +1,4 @@
+// src/utils/databaseUtils.js - FUNCIONES CENTRALIZADAS DE CONTROL DE BD
 const db = require('../models');
 
 /**
@@ -8,7 +9,9 @@ const db = require('../models');
  * @returns {Object} Resultado estandarizado
  */
 const executeWithTransaction = async (inputData, businessLogic, operationName) => {
-  const transaction = await db.sequelize.transaction();
+  const transaction = await db.sequelize.transaction({
+    isolationLevel: db.Sequelize.Transaction.ISOLATION_LEVELS.REPEATABLE_READ
+  });
   const startTime = Date.now();
   
   try {
