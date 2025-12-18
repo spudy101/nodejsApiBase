@@ -10,7 +10,7 @@ const {
 /**
  * Obtener datos completos del usuario por token
  * @param {string} token - Token del usuario
- * @returns {Object} Resultado con datos del usuario
+ * @returns {Promise<object>}
  */
 const obtenerDatosUsuarioPorToken = async (token) => {
   return await executeQuery(

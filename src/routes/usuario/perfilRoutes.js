@@ -1,6 +1,7 @@
 const express = require('express');
 const perfilUsuarioController = require('../../controllers/usuario/perfilController');
-const { verificarAutenticacion } = require('../../middlewares/authMiddleware');
+const { verificarAutenticacion, verificarTimestamp } = require('../../middlewares/authMiddleware');
+const { withRequestLock } = require('../../middlewares/requestLock');
 
 const router = express.Router();
 
@@ -13,14 +14,14 @@ const router = express.Router();
  *     tags: [perfil_usuario]
  *     parameters:
  *       - in: header
- *         name: authorization
- *         required: false
+ *         name: timestamp
+ *         required: true
  *         schema:
  *           type: string
- *         description: Token encriptado de autenticación del usuario.
+ *         description: Timestamp encriptado, para validar que el response sea reciente.
  *       - in: cookie
  *         name: jwtToken
- *         required: false
+ *         required: true
  *         schema:
  *           type: string
  *         description: Token JWT en cookie.
@@ -32,6 +33,6 @@ const router = express.Router();
  *       500:
  *         description: Error interno del servidor.
  */
-router.get('/datos_usuario', verificarAutenticacion, perfilUsuarioController.getDatosUsuario);
+router.get('/datos_usuario', verificarTimestamp, verificarAutenticacion, withRequestLock((req) => req.user?.party_uuid), perfilUsuarioController.getDatosUsuario);
 
 module.exports = router;
