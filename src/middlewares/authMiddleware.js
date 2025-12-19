@@ -1,139 +1,166 @@
-require('dotenv').config();
-const { obtenerDatosUsuarioPorToken } = require('../utils/datosUtils');
-const { desencriptarMensaje } = require('../utils/cryptoUtils');
-const jwt = require('jsonwebtoken');
-
-const SECRET_JWT_KEY = process.env.SECRET_JWT_KEY;
+const { verifyToken } = require('../utils/jwtHelper');
+const { errorResponse } = require('../utils/responseHandler');
+const logger = require('../utils/logger');
+const { User } = require('../models');
 
 /**
- * Middleware para verificar autenticación de usuario
- * @param {Object} req - Objeto de solicitud Express
- * @param {Object} res - Objeto de respuesta Express
- * @param {Function} next - Función para continuar al siguiente middleware
+ * Middleware para verificar JWT
  */
-const verificarAutenticacion = async (req, res, next) => {
+const authenticate = async (req, res, next) => {
   try {
-    // Obtener el token del header Authorization
-    let token;
 
-    const jwtToken = req.cookies.jwtToken;
+    // Obtener token del header Authorization
+    const authHeader = req.headers.authorization;
 
-    if (!jwtToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'No autorizado. Token no proporcionado',
-        code: 'AUTH_REQUIRED'
-      });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return errorResponse(res, 'Token de autenticación no proporcionado', 401);
     }
 
-    const infoJwt = jwt.verify(jwtToken, SECRET_JWT_KEY);
-    token = infoJwt.token;
+    const token = authHeader.substring(7); // Remover "Bearer "
 
-    
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No autorizado. Token no proporcionado',
-        code: 'AUTH_REQUIRED'
-      });
+    // Verificar y decodificar token
+    const decoded = verifyToken(token);
+
+    // Opcional: Verificar que el usuario existe y está activo
+    const user = await User.findByPk(decoded.id, {
+      attributes: ['id', 'email', 'role', 'isActive']
+    });
+
+    if (!user) {
+      return errorResponse(res, 'Usuario no encontrado', 401);
     }
 
-    const result = await obtenerDatosUsuarioPorToken(token);
-
-    if (!result.success || !result.data) {
-      return res.status(401).json({
-        success: false,
-        message: 'No autorizado. Sesión inválida o expirada',
-        code: 'INVALID_SESSION'
-      });
+    if (!user.isActive) {
+      return errorResponse(res, 'Usuario inactivo', 403);
     }
 
-    req.usuario = result.data;
+    // Agregar usuario al request
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    };
+
+    logger.debug('Usuario autenticado', {
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    });
 
     next();
+
   } catch (error) {
-    console.error('Error en middleware de autenticación:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: error.message
+    logger.warn('Error en autenticación', {
+      error: error.message,
+      ip: req.ip,
+      url: req.originalUrl
     });
+
+    if (error.message === 'Token expirado') {
+      return errorResponse(res, 'Tu sesión ha expirado, por favor inicia sesión nuevamente', 401);
+    }
+
+    if (error.message === 'Token inválido') {
+      return errorResponse(res, 'Token de autenticación inválido', 401);
+    }
+
+    return errorResponse(res, 'Error al verificar autenticación', 401);
   }
 };
 
 /**
- * Middleware para verificar timestamp
- * @param {Object} req - Objeto de solicitud Express
- * @param {Object} res - Objeto de respuesta Express
- * @param {Function} next - Función para continuar al siguiente middleware
+ * Middleware para verificar roles
+ * @param {Array<String>} allowedRoles - Roles permitidos ['admin', 'user']
  */
-const verificarTimestamp = async (req, res, next) => {
-  try {
-    // Obtener el timestamp del header
-    const timestamp = req.headers.timestamp;
-
-    if (!timestamp) {
-      return res.status(401).json({
-        success: false,
-        message: 'No autorizado. timestamp no proporcionado',
-        code: 'AUTH_REQUIRED'
-      });
+const authorize = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return errorResponse(res, 'Usuario no autenticado', 401);
     }
 
-    // Desencriptar el timestamp
-    const timestampDecrypt = await desencriptarMensaje(timestamp);
-
-    if (!timestampDecrypt) {
-      return res.status(401).json({
-        success: false,
-        message: 'Timestamp inválido o corrupto',
-        code: 'INVALID_TIMESTAMP'
+    if (!allowedRoles.includes(req.user.role)) {
+      logger.warn('Acceso denegado por rol', {
+        userId: req.user.id,
+        userRole: req.user.role,
+        requiredRoles: allowedRoles,
+        url: req.originalUrl
       });
+
+      return errorResponse(
+        res, 
+        'No tienes permisos para acceder a este recurso', 
+        403
+      );
     }
-
-    // Convertir el timestamp desencriptado a número
-    const timestampValue = parseInt(timestampDecrypt, 10);
-
-    if (isNaN(timestampValue)) {
-      return res.status(401).json({
-        success: false,
-        message: 'Formato de timestamp inválido',
-        code: 'INVALID_TIMESTAMP_FORMAT'
-      });
-    }
-
-    // Obtener el timestamp actual en milisegundos
-    const ahora = Date.now();
-
-    // Calcular la diferencia en milisegundos
-    const diferencia = Math.abs(ahora - timestampValue);
-
-    // Verificar que no haya pasado más de 1 minuto (60000 ms)
-    const UN_MINUTO_MS = 60000;
-
-    if (diferencia > UN_MINUTO_MS) {
-      return res.status(401).json({
-        success: false,
-        message: 'Timestamp expirado. La solicitud debe realizarse dentro de 1 minuto',
-        code: 'TIMESTAMP_EXPIRED'
-      });
-    }
-
-    // Opcional: guardar el timestamp en req para uso posterior
-    req.timestampValidado = timestampValue;
 
     next();
+  };
+};
+
+/**
+ * Middleware para verificar que el usuario accede a sus propios recursos
+ * o es admin
+ */
+const authorizeOwnerOrAdmin = (paramName = 'userId') => {
+  return (req, res, next) => {
+    const resourceUserId = req.params[paramName] || req.body[paramName];
+    const currentUserId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (resourceUserId !== currentUserId && !isAdmin) {
+      logger.warn('Acceso denegado - no es owner ni admin', {
+        userId: currentUserId,
+        resourceUserId,
+        url: req.originalUrl
+      });
+
+      return errorResponse(
+        res,
+        'No tienes permisos para acceder a este recurso',
+        403
+      );
+    }
+
+    next();
+  };
+};
+
+/**
+ * Middleware opcional de autenticación
+ * Si hay token, lo valida. Si no hay, continúa sin user
+ */
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+
+      const user = await User.findByPk(decoded.id, {
+        attributes: ['id', 'email', 'role', 'isActive']
+      });
+
+      if (user && user.isActive) {
+        req.user = {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        };
+      }
+    }
+
+    next();
+
   } catch (error) {
-    console.error('Error en middleware de verificación de timestamp:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: error.message
-    });
+    // Si falla, simplemente continuar sin usuario
+    next();
   }
 };
 
 module.exports = {
-  verificarAutenticacion,
-  verificarTimestamp
+  authenticate,
+  authorize,
+  authorizeOwnerOrAdmin,
+  optionalAuth
 };

@@ -1,12 +1,21 @@
 const { Sequelize } = require('sequelize');
-const { sequelize } = require('../database/connection');
-const initModels = require('./init-models');
+const sequelize = require('../config/database');
 
-// Inicializar modelos y asociaciones automáticas
-const db = initModels(sequelize);
+const db = {
+  sequelize,
+  Sequelize
+};
 
-// Agregar objetos de Sequelize al objeto db
-db.sequelize = sequelize;
-db.Sequelize = Sequelize;
+// Importar modelos
+db.User = require('./User')(sequelize);
+db.Product = require('./Product')(sequelize);
+db.LoginAttempts = require('./LoginAttempts')(sequelize);
+
+// Configurar asociaciones
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
 
 module.exports = db;

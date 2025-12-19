@@ -1,54 +1,118 @@
-require('dotenv').config();
+const crypto = require('crypto');
+const logger = require('../utils/logger');
+const { errorResponse } = require('../utils/responseHandler');
 
-// middlewares/requestLockMiddleware.js
-const { createRequestLock } = require('../utils/requestLock');
+// Almacén en memoria para requests en proceso
+// En producción, usar Redis
+const requestStore = new Map();
 
-// Cache de locks por ruta
-const routeLocks = new Map();
+// Limpiar requests antiguos cada 5 minutos
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of requestStore.entries()) {
+    if (now - value.timestamp > 5 * 60 * 1000) { // 5 minutos
+      requestStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
 
-const withRequestLock = (keyExtractor) => {
-    return (req, res, next) => {
-        const routeKey = req.originalUrl;
+/**
+ * Genera una clave única para la request
+ */
+const generateRequestKey = (req) => {
+  const userId = req.user?.id || 'anonymous';
+  const method = req.method;
+  const path = req.path;
+  const body = JSON.stringify(req.body);
+  
+  const data = `${userId}-${method}-${path}-${body}`;
+  return crypto.createHash('md5').update(data).digest('hex');
+};
 
-        if (!routeLocks.has(routeKey)) {
-          console.log("creando request...")
-            routeLocks.set(routeKey, createRequestLock());
-        }
-        const lock = routeLocks.get(routeKey);
+/**
+ * Middleware para prevenir requests duplicados simultáneos
+ * Útil para prevenir doble submit en formularios
+ */
+const requestLock = (options = {}) => {
+  const {
+    timeout = 5000, // Tiempo máximo de espera (5 segundos)
+    message = 'Petición duplicada en proceso, por favor espera'
+  } = options;
 
-        const lockKey = keyExtractor(req);
+  return async (req, res, next) => {
+    // Solo aplicar a métodos que modifican datos
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      return next();
+    }
 
-        
-        if (!lockKey) {
-            return res.status(400).json({
-                estado_solicitud: 0,
-                message: 'No se pudo identificar la solicitud'
-            });
-        }
+    const requestKey = generateRequestKey(req);
 
-        if (!lock.acquire(lockKey)) {
-            return res.status(429).json({
-                estado_solicitud: 0,
-                message: 'Ya hay una solicitud en proceso.'
-            });
-        }
+    // Verificar si existe una request idéntica en proceso
+    if (requestStore.has(requestKey)) {
+      const existingRequest = requestStore.get(requestKey);
+      const timeDiff = Date.now() - existingRequest.timestamp;
 
-        // Flag para evitar doble release
-        let released = false;
-        const releaseLock = () => {
-            if (!released) {
-                released = true;
-                lock.release(lockKey);
-            }
-        };
+      // Si la request lleva menos del timeout, rechazar
+      if (timeDiff < timeout) {
+        logger.warn('Request duplicado detectado', {
+          requestKey,
+          userId: req.user?.id,
+          method: req.method,
+          path: req.path,
+          timeDiff: `${timeDiff}ms`
+        });
 
-        res.on('finish', releaseLock);
-        res.on('close', releaseLock);
+        return errorResponse(res, message, 409);
+      }
 
-        next();
+      // Si ya pasó el timeout, eliminar y permitir
+      requestStore.delete(requestKey);
+    }
+
+    // Registrar la nueva request
+    requestStore.set(requestKey, {
+      timestamp: Date.now(),
+      userId: req.user?.id,
+      method: req.method,
+      path: req.path
+    });
+
+    logger.debug('Request registrado en lock', {
+      requestKey,
+      userId: req.user?.id,
+      method: req.method,
+      path: req.path
+    });
+
+    // Limpiar después de que termine la request
+    const cleanup = () => {
+      requestStore.delete(requestKey);
+      logger.debug('Request lock liberado', { requestKey });
     };
+
+    // Cleanup en finish o error
+    res.on('finish', cleanup);
+    res.on('close', cleanup);
+
+    next();
+  };
+};
+
+/**
+ * Obtener estadísticas del request lock
+ */
+const getRequestLockStats = () => {
+  return {
+    activeRequests: requestStore.size,
+    requests: Array.from(requestStore.entries()).map(([key, value]) => ({
+      key,
+      age: Date.now() - value.timestamp,
+      ...value
+    }))
+  };
 };
 
 module.exports = {
-  withRequestLock
+  requestLock,
+  getRequestLockStats
 };
