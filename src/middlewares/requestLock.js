@@ -7,7 +7,7 @@ const { errorResponse } = require('../utils/responseHandler');
 const requestStore = new Map();
 
 // Limpiar requests antiguos cada 5 minutos
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, value] of requestStore.entries()) {
     if (now - value.timestamp > 5 * 60 * 1000) { // 5 minutos
@@ -112,7 +112,23 @@ const getRequestLockStats = () => {
   };
 };
 
+/**
+ * Limpiar el request store (solo para testing)
+ */
+const clearRequestStore = () => {
+  requestStore.clear();
+};
+
+/**
+ * Detener el cleanup interval (solo para testing)
+ */
+const stopCleanupInterval = () => {
+  clearInterval(cleanupInterval);
+};
+
 module.exports = {
   requestLock,
-  getRequestLockStats
+  getRequestLockStats,
+  clearRequestStore, // ← Exportar para tests
+  stopCleanupInterval // ← Exportar para tests
 };

@@ -1,7 +1,8 @@
 const { Product, User } = require('../models');
 const { sequelize } = require('../models');
 const { executeWithTransaction, executeQuery } = require('../utils/transactionWrapper');
-const { Op } = require('sequelize');
+const { Op, Transaction } = require('sequelize');
+const Sequelize = require('sequelize');
 const logger = require('../utils/logger');
 
 class ProductService {
@@ -190,7 +191,7 @@ class ProductService {
       async (data, transaction) => {
         const product = await Product.findByPk(data.productId, { 
           transaction,
-          lock: transaction.LOCK.UPDATE // Lock para evitar condiciones de carrera
+          lock: Transaction.LOCK.UPDATE // Lock para evitar condiciones de carrera
         });
 
         if (!product) {
@@ -257,7 +258,7 @@ class ProductService {
         };
       },
       'updateStock',
-      { sequelize, isolationLevel: sequelize.Transaction.ISOLATION_LEVELS.SERIALIZABLE }
+      { sequelize, isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.SERIALIZABLE }
     );
   }
 

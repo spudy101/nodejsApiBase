@@ -1,7 +1,4 @@
 const { DataTypes } = require('sequelize');
-require('dotenv').config();
-
-const SCHEMA = process.env.DB_SCHEMA;
 
 module.exports = (sequelize) => {
   const Product = sequelize.define('Product', {
@@ -70,7 +67,6 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'products',
-    schema: SCHEMA,
     timestamps: true
   });
 

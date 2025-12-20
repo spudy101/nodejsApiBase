@@ -1,6 +1,7 @@
 // test/unit/services/productService/stock.test.js
 const productService = require('../../../../src/services/productService');
 const { Product, sequelize } = require('../../../../src/models');
+const Sequelize = require('sequelize');
 const { executeWithTransaction } = require('../../../../src/utils/transactionWrapper');
 
 jest.mock('../../../../src/models');
@@ -376,7 +377,7 @@ describe('ProductService - Update Stock (CRÍTICO)', () => {
         expect.anything(),
         'updateStock',
         expect.objectContaining({
-          isolationLevel: sequelize.Transaction.ISOLATION_LEVELS.SERIALIZABLE
+          isolationLevel: Sequelize.Transaction.ISOLATION_LEVELS.SERIALIZABLE
         })
       );
     });

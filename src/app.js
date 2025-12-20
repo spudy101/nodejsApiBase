@@ -70,7 +70,7 @@ app.get('/', (req, res) => {
   });
 });
 
-const swaggerDocs = require('./config/swagger');
+const swaggerDocs = require('../config/swagger');
 
 // ==================== SWAGGER DOCUMENTATION ====================
 swaggerDocs(app);

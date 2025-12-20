@@ -1,5 +1,10 @@
 // test/unit/middlewares/requestLock.test.js
-const { requestLock, getRequestLockStats } = require('../../../src/middlewares/requestLock');
+const { 
+  requestLock, 
+  getRequestLockStats, 
+  clearRequestStore, 
+  stopCleanupInterval 
+} = require('../../../src/middlewares/requestLock');
 const { errorResponse } = require('../../../src/utils/responseHandler');
 
 jest.mock('../../../src/utils/responseHandler');
@@ -9,6 +14,8 @@ describe('RequestLock Middleware', () => {
   let req, res, next;
 
   beforeEach(() => {
+    clearRequestStore(); // ← Limpiar el store antes de cada test
+    
     req = {
       method: 'POST',
       path: '/api/products',
@@ -24,13 +31,16 @@ describe('RequestLock Middleware', () => {
     };
     next = jest.fn();
     jest.clearAllMocks();
-    
-    // Limpiar el store entre tests
     jest.useFakeTimers();
   });
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  afterAll(() => {
+    stopCleanupInterval(); // ← Detener interval al final de todos los tests
+    clearRequestStore();
   });
 
   describe('métodos permitidos', () => {

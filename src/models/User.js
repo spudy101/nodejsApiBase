@@ -1,8 +1,5 @@
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
-
-const SCHEMA = process.env.DB_SCHEMA;
 
 module.exports = (sequelize) => {
   const User = sequelize.define('User', {
@@ -73,7 +70,6 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'users',
-    schema: SCHEMA,
     timestamps: true,
     hooks: {
       beforeCreate: async (user) => {
