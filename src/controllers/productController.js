@@ -26,7 +26,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en createProduct controller', { error: error.message });
+      logger.error('Error en createProduct controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -65,7 +69,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en listProducts controller', { error: error.message });
+      logger.error('Error en listProducts controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -92,7 +100,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en getProductById controller', { error: error.message });
+      logger.error('Error en getProductById controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       
       if (error.message === 'Producto no encontrado') {
         return errorResponse(res, error.message, 404);
@@ -126,7 +138,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en updateProduct controller', { error: error.message });
+      logger.error('Error en updateProduct controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -154,7 +170,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en updateStock controller', { error: error.message });
+      logger.error('Error en updateStock controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -181,7 +201,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en deleteProduct controller', { error: error.message });
+      logger.error('Error en deleteProduct controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -208,7 +232,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en permanentlyDeleteProduct controller', { error: error.message });
+      logger.error('Error en permanentlyDeleteProduct controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -235,7 +263,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en getProductsByCategory controller', { error: error.message });
+      logger.error('Error en getProductsByCategory controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -260,7 +292,11 @@ class ProductController {
       );
 
     } catch (error) {
-      logger.error('Error en getProductStats controller', { error: error.message });
+      logger.error('Error en getProductStats controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }

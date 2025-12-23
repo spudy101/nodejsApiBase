@@ -1,17 +1,19 @@
 require('dotenv').config();
 
-module.exports = {
+const env = process.env.NODE_ENV || 'development';
+
+const baseConfig = {
   development: {
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    dialect: 'postgres',
+    dialect: process.env.DB_DIALECT,
     dialectOptions: {
       prependSearchPath: true
     },
-    schema: process.env.DB_SCHEMA || 'public',  // ← Usa variable
+    schema: process.env.DB_SCHEMA || 'public',
     define: {
       schema: process.env.DB_SCHEMA || 'public',
       timestamps: true,
@@ -26,40 +28,38 @@ module.exports = {
       idle: 10000
     }
   },
+  
+  // 🎯 Tests: SQLite en memoria (como Flask)
   test: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: 'postgres',
-    dialectOptions: {
-      prependSearchPath: true
-    },
-    schema: process.env.DB_SCHEMA || 'test',
+    dialect: 'sqlite',
+    storage: ':memory:',
+    logging: false,
     define: {
-      schema: process.env.DB_SCHEMA || 'test',
       timestamps: true,
       underscored: false,
       freezeTableName: true
     },
-    logging: false,
     pool: {
-      max: 5,
+      max: 1,
       min: 0,
       acquire: 30000,
       idle: 10000
     }
   },
+  
   production: {
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    dialect: 'postgres',
+    dialect: process.env.DB_DIALECT,
     dialectOptions: {
-      prependSearchPath: true
+      prependSearchPath: true,
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
     },
     schema: process.env.DB_SCHEMA || 'public',
     define: {
@@ -70,10 +70,13 @@ module.exports = {
     },
     logging: false,
     pool: {
-      max: 5,
-      min: 0,
+      max: 10,
+      min: 2,
       acquire: 30000,
       idle: 10000
     }
   }
 };
+
+module.exports = baseConfig;
+module.exports[env] = baseConfig[env];

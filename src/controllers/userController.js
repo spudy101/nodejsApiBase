@@ -34,7 +34,11 @@ class UserController {
       );
 
     } catch (error) {
-      logger.error('Error en listUsers controller', { error: error.message });
+      logger.error('Error en listUsers controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -61,7 +65,11 @@ class UserController {
       );
 
     } catch (error) {
-      logger.error('Error en getUserById controller', { error: error.message });
+      logger.error('Error en getUserById controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       
       if (error.message === 'Usuario no encontrado') {
         return errorResponse(res, error.message, 404);
@@ -94,7 +102,11 @@ class UserController {
       );
 
     } catch (error) {
-      logger.error('Error en updateUserRole controller', { error: error.message });
+      logger.error('Error en updateUserRole controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -121,7 +133,11 @@ class UserController {
       );
 
     } catch (error) {
-      logger.error('Error en activateUser controller', { error: error.message });
+      logger.error('Error en activateUser controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -148,7 +164,11 @@ class UserController {
       );
 
     } catch (error) {
-      logger.error('Error en deactivateUser controller', { error: error.message });
+      logger.error('Error en deactivateUser controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -175,7 +195,11 @@ class UserController {
       );
 
     } catch (error) {
-      logger.error('Error en deleteUser controller', { error: error.message });
+      logger.error('Error en deleteUser controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -200,7 +224,11 @@ class UserController {
       );
 
     } catch (error) {
-      logger.error('Error en getUserStats controller', { error: error.message });
+      logger.error('Error en getUserStats controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }

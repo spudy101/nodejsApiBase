@@ -18,17 +18,17 @@ module.exports = {
     }
   },
 
-  // IMPORTANTE: Diferentes configuraciones para diferentes tipos de tests
+  // Proyectos separados: unit (sin BD) vs integration (con BD)
   projects: [
     {
       displayName: 'unit',
-      testMatch: ['**/test/unit/**/*.test.js'],
-      setupFilesAfterEnv: ['<rootDir>/test/setup.unit.js'], // ✅ Setup sin BD
+      testMatch: ['**/tests/unit/**/*.test.js'],
+      setupFilesAfterEnv: ['<rootDir>/tests/setup.unit.js'], // Sin BD
     },
     {
       displayName: 'integration',
-      testMatch: ['**/test/integration/**/*.test.js'],
-      setupFilesAfterEnv: ['<rootDir>/test/setup.js'], // ✅ Setup con BD
+      testMatch: ['**/tests/integration/**/*.test.js'],
+      setupFilesAfterEnv: ['<rootDir>/tests/setup.js'], // Con BD SQLite
     }
   ]
 };

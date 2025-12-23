@@ -34,7 +34,11 @@ class AuthController {
       );
 
     } catch (error) {
-      logger.error('Error en register controller', { error: error.message });
+      logger.error('Error en register controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -65,7 +69,11 @@ class AuthController {
       );
 
     } catch (error) {
-      logger.error('Error en login controller', { error: error.message });
+      logger.error('Error en login controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       
       // Errores específicos de login
       if (error.message === 'Credenciales inválidas' || error.message === 'Usuario inactivo') {
@@ -98,7 +106,11 @@ class AuthController {
       );
 
     } catch (error) {
-      logger.error('Error en getProfile controller', { error: error.message });
+      logger.error('Error en getProfile controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -126,7 +138,11 @@ class AuthController {
       );
 
     } catch (error) {
-      logger.error('Error en updateProfile controller', { error: error.message });
+      logger.error('Error en updateProfile controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -158,7 +174,11 @@ class AuthController {
       );
 
     } catch (error) {
-      logger.error('Error en changePassword controller', { error: error.message });
+      logger.error('Error en changePassword controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
@@ -185,7 +205,11 @@ class AuthController {
       );
 
     } catch (error) {
-      logger.error('Error en deactivateAccount controller', { error: error.message });
+      logger.error('Error en deactivateAccount controller', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       next(error);
     }
   }
