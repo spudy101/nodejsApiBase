@@ -1,17 +1,12 @@
-// test/integration/helpers/testHelpers.js
+// tests/integration/helpers/testHelpers.js
 const request = require('supertest');
 const { User, Product, LoginAttempts, sequelize } = require('../../../src/models');
-
-// Lista de schemas prohibidos para tests
-const FORBIDDEN_SCHEMAS = ['public', 'app_schema', 'prod', 'production'];
 
 /**
  * Verificar que estamos en entorno de test
  */
 function verifyTestEnvironment() {
-  const dbName = sequelize.config.database;
-  const schema = sequelize.config.schema || process.env.DB_SCHEMA;
-  const testSchema = process.env.DB_SCHEMA || 'test_schema';
+  const dialect = sequelize.getDialect();
   
   // Verificar NODE_ENV
   if (process.env.NODE_ENV !== 'test') {
@@ -20,16 +15,14 @@ function verifyTestEnvironment() {
     );
   }
   
-  // Verificar schema prohibido
-  if (FORBIDDEN_SCHEMAS.includes(schema)) {
+  // Verificar que estamos usando SQLite
+  if (dialect !== 'sqlite') {
     throw new Error(
-      `🚨 PELIGRO: Estás usando un schema prohibido para tests!\n` +
-      `Schema actual: ${schema}\n` +
-      `Schemas prohibidos: ${FORBIDDEN_SCHEMAS.join(', ')}`
+      `🚨 PELIGRO: Los tests deben usar SQLite, dialect actual: '${dialect}'`
     );
   }
   
-  console.log(`✅ Usando BD de test: ${dbName}, Schema: ${schema}`);
+  console.log(`✅ Usando BD de test: SQLite en memoria`);
 }
 
 /**
@@ -93,43 +86,21 @@ async function loginAndGetToken(app, email, password) {
 }
 
 /**
- * Limpiar base de datos - VERSIÓN SEGURA
- * Solo limpia si estamos en el entorno de test
+ * Limpiar base de datos - VERSIÓN SIMPLIFICADA PARA SQLITE
  */
 async function cleanDatabase() {
   // Verificar entorno antes de limpiar
   verifyTestEnvironment();
   
-  // Obtener el schema de test
-  const testSchema = process.env.DB_SCHEMA || 'test_schema';
-  
   try {
-    // Deshabilitar temporalmente constraints para limpieza más rápida
-    await sequelize.query(`SET session_replication_role = 'replica'`);
-    
-    // Método 1: Usando los modelos (más seguro, respeta el schema configurado)
-    // El orden importa para respetar foreign keys
+    // Limpiar en orden (respetar foreign keys)
     await LoginAttempts.destroy({ where: {}, truncate: true, cascade: true });
     await Product.destroy({ where: {}, truncate: true, cascade: true });
     await User.destroy({ where: {}, truncate: true, cascade: true });
-    
-    // Rehabilitar constraints
-    await sequelize.query(`SET session_replication_role = 'origin'`);
-    
   } catch (error) {
-    // Rehabilitar constraints en caso de error
-    await sequelize.query(`SET session_replication_role = 'origin'`).catch(() => {});
-    
-    // Si falla destroy, intentar TRUNCATE directo
-    try {
-      await sequelize.query(`TRUNCATE TABLE "${testSchema}"."login_attempts" RESTART IDENTITY CASCADE`);
-      await sequelize.query(`TRUNCATE TABLE "${testSchema}"."products" RESTART IDENTITY CASCADE`);
-      await sequelize.query(`TRUNCATE TABLE "${testSchema}"."users" RESTART IDENTITY CASCADE`);
-    } catch (truncateError) {
-      // Ignorar si las tablas no existen
-      if (!truncateError.message.includes('does not exist')) {
-        console.warn('⚠️ Error en cleanDatabase:', truncateError.message);
-      }
+    // Ignorar si las tablas no existen
+    if (!error.message.includes('no such table')) {
+      console.warn('⚠️  Error en cleanDatabase:', error.message);
     }
   }
 }
@@ -148,8 +119,8 @@ async function cleanTable(model) {
       restartIdentity: true 
     });
   } catch (error) {
-    if (!error.message.includes('does not exist')) {
-      console.warn(`⚠️ Error limpiando tabla ${model.name}:`, error.message);
+    if (!error.message.includes('no such table')) {
+      console.warn(`⚠️  Error limpiando tabla ${model.name}:`, error.message);
     }
   }
 }
@@ -161,7 +132,6 @@ async function createUserAndLogin(app, userData = {}) {
   const password = userData.password || 'Password123';
   const user = await createTestUser({ ...userData, password });
   
-  // Necesitamos usar la contraseña original, no la hasheada
   const token = await loginAndGetToken(app, user.email, password);
   
   return { user, token, password };
@@ -246,7 +216,6 @@ async function seedTestData() {
 
 /**
  * Ejecutar función dentro de una transacción con rollback
- * Útil para tests que necesitan transacciones pero no quieren persistir datos
  */
 async function withTransaction(callback) {
   const transaction = await sequelize.transaction();
@@ -269,24 +238,13 @@ function generateTestEmail(prefix = 'test') {
  * Obtener estadísticas de la BD (útil para debugging)
  */
 async function getDatabaseStats() {
-  const testSchema = process.env.DB_SCHEMA || 'test_schema';
-  
-  const [tables] = await sequelize.query(`
-    SELECT 
-      tablename,
-      schemaname
-    FROM pg_tables 
-    WHERE schemaname = '${testSchema}'
-    ORDER BY tablename
-  `);
-  
+  const models = Object.keys(sequelize.models);
   const stats = {};
-  for (const { tablename } of tables) {
-    const [result] = await sequelize.query(`
-      SELECT COUNT(*) as count 
-      FROM "${testSchema}"."${tablename}"
-    `);
-    stats[tablename] = parseInt(result[0].count);
+  
+  for (const modelName of models) {
+    const model = sequelize.models[modelName];
+    const count = await model.count();
+    stats[modelName] = count;
   }
   
   return stats;

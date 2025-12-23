@@ -48,21 +48,60 @@ const level = () => {
 // Configurar transports (dónde se guardan los logs)
 const transports = [
   // Consola
-  new winston.transports.Console(),
+  new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+      winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+        let msg = `${timestamp} [${level}]: ${message}`;
+        
+        // Si hay metadatos adicionales, los agregamos
+        if (Object.keys(metadata).length > 0) {
+          msg += ` ${JSON.stringify(metadata, null, 2)}`;
+        }
+        
+        return msg;
+      })
+    )
+  }),
   
   // Archivo de errores
   new winston.transports.File({
     filename: path.join('logs', 'error.log'),
     level: 'error',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
+    maxsize: 5242880,
+    maxFiles: 5,
+    format: winston.format.combine(
+      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+      winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+        let msg = `${timestamp} [${level}]: ${message}`;
+        
+        if (Object.keys(metadata).length > 0) {
+          msg += ` ${JSON.stringify(metadata)}`;
+        }
+        
+        return msg;
+      })
+    )
   }),
   
   // Archivo de todos los logs
   new winston.transports.File({
     filename: path.join('logs', 'combined.log'),
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
+    maxsize: 5242880,
+    maxFiles: 5,
+    format: winston.format.combine(
+      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+      winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+        let msg = `${timestamp} [${level}]: ${message}`;
+        
+        if (Object.keys(metadata).length > 0) {
+          msg += ` ${JSON.stringify(metadata)}`;
+        }
+        
+        return msg;
+      })
+    )
   })
 ];
 
