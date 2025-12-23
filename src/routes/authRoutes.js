@@ -14,70 +14,9 @@ const {
 const { validateRequest } = require('../middlewares/validateRequest');
 
 /**
- * @swagger
- * /auth/register:
- *   post:
- *     summary: Registrar nuevo usuario
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - name
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: usuario@example.com
- *               password:
- *                 type: string
- *                 format: password
- *                 minLength: 6
- *                 example: Password123
- *               name:
- *                 type: string
- *                 minLength: 2
- *                 maxLength: 100
- *                 example: Juan Pérez
- *               role:
- *                 type: string
- *                 enum: [user, admin]
- *                 default: user
- *     responses:
- *       201:
- *         description: Usuario registrado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Usuario registrado exitosamente
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/User'
- *                     token:
- *                       type: string
- *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *       400:
- *         description: Error de validación
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ValidationErrorResponse'
- *       429:
- *         description: Demasiadas peticiones
+ * @route   POST /api/v1/auth/register
+ * @desc    Registro de usuario
+ * @access  Public
  */
 router.post(
   '/register',
@@ -87,56 +26,9 @@ router.post(
 );
 
 /**
- * @swagger
- * /auth/login:
- *   post:
- *     summary: Iniciar sesión
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: admin@example.com
- *               password:
- *                 type: string
- *                 format: password
- *                 example: password123
- *     responses:
- *       200:
- *         description: Login exitoso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Inicio de sesión exitoso
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/User'
- *                     token:
- *                       type: string
- *       401:
- *         description: Credenciales inválidas
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ * @route   POST /api/v1/auth/login
+ * @desc    Inicio de sesion
+ * @access  Private (Admin o Usuario)
  */
 router.post(
   '/login',
@@ -146,29 +38,9 @@ router.post(
 );
 
 /**
- * @swagger
- * /auth/profile:
- *   get:
- *     summary: Obtener perfil del usuario autenticado
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Perfil obtenido exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   $ref: '#/components/schemas/User'
- *       401:
- *         description: No autenticado
+ * @route   GET /api/v1/auth/profile
+ * @desc    obtener informacion del usuario mediante jwt
+ * @access  Private (Admin o Usuario)
  */
 router.get(
   '/profile',
@@ -177,34 +49,9 @@ router.get(
 );
 
 /**
- * @swagger
- * /auth/profile:
- *   put:
- *     summary: Actualizar perfil del usuario autenticado
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 example: Juan Actualizado
- *               email:
- *                 type: string
- *                 format: email
- *                 example: nuevo@example.com
- *     responses:
- *       200:
- *         description: Perfil actualizado exitosamente
- *       400:
- *         description: Error de validación
- *       401:
- *         description: No autenticado
+ * @route   PUT /api/v1/auth/profile
+ * @desc    Actualizar informacion del usuario
+ * @access  Private (Admin o Usuario)
  */
 router.put(
   '/profile',
@@ -215,41 +62,9 @@ router.put(
 );
 
 /**
- * @swagger
- * /auth/change-password:
- *   put:
- *     summary: Cambiar contraseña del usuario autenticado
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - currentPassword
- *               - newPassword
- *               - confirmPassword
- *             properties:
- *               currentPassword:
- *                 type: string
- *                 format: password
- *               newPassword:
- *                 type: string
- *                 format: password
- *                 minLength: 6
- *               confirmPassword:
- *                 type: string
- *                 format: password
- *     responses:
- *       200:
- *         description: Contraseña actualizada exitosamente
- *       400:
- *         description: Contraseña actual incorrecta
- *       401:
- *         description: No autenticado
+ * @route   PUT /api/v1/auth/profile
+ * @desc    Actualizar password del usuario
+ * @access  Private (Admin o Usuario)
  */
 router.put(
   '/change-password',
@@ -260,18 +75,9 @@ router.put(
 );
 
 /**
- * @swagger
- * /auth/account:
- *   delete:
- *     summary: Desactivar cuenta del usuario autenticado
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Cuenta desactivada exitosamente
- *       401:
- *         description: No autenticado
+ * @route   PUT /api/v1/auth/profile
+ * @desc    Eliminar cuenta del usuario
+ * @access  Private (Admin o Usuario)
  */
 router.delete(
   '/account',
