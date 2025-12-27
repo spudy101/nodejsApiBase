@@ -63,36 +63,6 @@ RATE_LIMIT_MAX_REQUESTS=100 # Máximo de peticiones por ventana por IP
 LOG_LEVEL=debug          # Nivel de log (debug, info, error)
 ```
 
-### Entorno de Pruebas (.env.test)
-
-Para ejecutar los tests, necesitas configurar un archivo `.env.test`. Este archivo se carga automáticamente cuando `NODE_ENV=test`.
-
-```ini
-# Server
-NODE_ENV=test
-PORT=3000
-
-# API
-API_PREFIX=/api/v1
-
-# Base de datos de pruebas (IMPORTANTE: Usar una base de datos distinta a la de desarrollo)
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=postgres         # Puede ser la misma instancia
-DB_USER=postgres
-DB_PASSWORD=tu_password
-DB_DIALECT=postgres
-DB_SCHEMA=test_schema    # Usar un esquema separado para tests es recomendado
-
-# Claves para tests
-JWT_SECRET=clave_secreta_para_tests
-JWT_EXPIRES_IN=24h
-ENCRYPTION_KEY=clave_encriptacion_para_tests
-```
-
-> [!WARNING]
-> Asegúrate de que las credenciales de la base de datos de pruebas sean correctas y tengas permisos para crear/borrar esquemas o tablas.
-
 ## Base de Datos
 
 Comandos disponibles para gestionar la base de datos con Sequelize:
@@ -140,16 +110,10 @@ npm start
 
 ## Testing
 
-Ejecutar la suite de pruebas con Jest. Asegúrate de tener configurado el archivo `.env.test`.
+Ejecutar la suite de pruebas con Jest. (Pruebas de integración realizadas con SQLite en memoria)
 
 ```bash
 npm test
-```
-
-Para ejecutar tests en modo watch (re-ejecución automática):
-
-```bash
-npm run test:watch
 ```
 
 ## Documentación API
@@ -221,3 +185,4 @@ nodejsBase/
    ├── utils/          # Utilidades y Helpers
    └── validators/     # Validaciones con express-validator
 ```
+
