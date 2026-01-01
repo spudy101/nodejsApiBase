@@ -1,85 +1,76 @@
+// src/app.js
 const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const morgan = require('morgan');
-const logger = require('./utils/logger');
+const compression = require('compression');
+const SecurityMiddleware = require('./middlewares/security.middleware');
+const RateLimitMiddleware = require('./middlewares/rateLimit.middleware');
+const ErrorMiddleware = require('./middlewares/error.middleware');
+const auditContextMiddleware = require('./middlewares/audit.middleware');
+const { httpLogger } = require('./utils/logger');
 const routes = require('./routes');
-const { 
-  errorHandler, 
-  notFoundHandler,
-  generalLimiter 
-} = require('./middlewares');
 
-const app = express();
+class App {
+  constructor() {
+    this.app = express();
+    this.setupMiddlewares();
+    this.setupRoutes();
+    this.setupErrorHandlers();
+  }
 
-// ==================== SECURITY ====================
-// Helmet - Seguridad HTTP headers
-app.use(helmet());
+  setupMiddlewares() {
+    this.app.set('trust proxy', 1);
 
-// CORS - Configuración de orígenes permitidos
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  maxAge: 86400 // 24 horas
-};
-app.use(cors(corsOptions));
+    // Security
+    this.app.use(SecurityMiddleware.helmet());
+    this.app.use(SecurityMiddleware.cors());
+    this.app.use(SecurityMiddleware.addSecurityHeaders);
 
-// ==================== MIDDLEWARE ====================
-// Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+    // Body parsers PRIMERO
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Morgan - HTTP request logger (solo en desarrollo)
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  // En producción, usar formato combined y escribir a archivo
-  app.use(morgan('combined', {
-    stream: {
-      write: (message) => logger.http(message.trim())
-    }
-  }));
+    // ✅ SANITIZACIÓN (previene inyección SQL/NoSQL)
+    // this.app.use(SecurityMiddleware.sanitizeInput());
+    // this.app.use(SecurityMiddleware.preventHPP());
+
+    // Contexto audit
+    this.app.use(auditContextMiddleware);
+
+    // Compression
+    this.app.use(compression());
+
+    // HTTP logger
+    this.app.use(httpLogger);
+
+    // Rate limit
+    this.app.use(RateLimitMiddleware.apiLimiter());
+  }
+
+  setupRoutes() {
+    // API routes
+    this.app.use('/api', routes);
+
+    // Root route
+    this.app.get('/', (req, res) => {
+      res.status(200).json({
+        success: true,
+        message: 'Welcome to the API',
+        version: '1.0.0',
+        documentation: '/api/health'
+      });
+    });
+  }
+
+  setupErrorHandlers() {
+    // 404 handler
+    this.app.use(ErrorMiddleware.handleNotFound);
+
+    // Global error handler
+    this.app.use(ErrorMiddleware.handleError);
+  }
+
+  getApp() {
+    return this.app;
+  }
 }
 
-// Rate limiting general
-app.use(generalLimiter);
-
-// Trust proxy (para obtener IP real detrás de proxy/load balancer)
-app.set('trust proxy', 1);
-
-// ==================== ROUTES ====================
-// API prefix
-const API_PREFIX = process.env.API_PREFIX || '/api/v1';
-app.use(API_PREFIX, routes);
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Bienvenido a la API',
-    version: '1.0.0',
-    documentation: `${req.protocol}://${req.get('host')}${API_PREFIX}/docs`,
-    endpoints: {
-      health: `${API_PREFIX}/health`,
-      auth: `${API_PREFIX}/auth`,
-      users: `${API_PREFIX}/users`,
-      products: `${API_PREFIX}/products`
-    }
-  });
-});
-
-const swaggerDocs = require('../config/swagger');
-
-// ==================== SWAGGER DOCUMENTATION ====================
-swaggerDocs(app);
-
-// ==================== ERROR HANDLING ====================
-// 404 - Not Found
-app.use(notFoundHandler);
-
-// Error handler global
-app.use(errorHandler);
-
-module.exports = app;
+module.exports = new App().getApp();
