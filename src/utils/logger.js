@@ -1,118 +1,157 @@
+// src/utils/logger.js
 const winston = require('winston');
 const path = require('path');
+const DailyRotateFile = require('winston-daily-rotate-file');
 
-// Definir niveles de log personalizados
-const levels = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  http: 3,
-  debug: 4
-};
-
-// Definir colores para cada nivel
-const colors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'green',
-  http: 'magenta',
-  debug: 'blue'
-};
-
-winston.addColors(colors);
-
-// Formato para desarrollo (con colores)
-const devFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.colorize({ all: true }),
-  winston.format.printf(
-    (info) => `${info.timestamp} [${info.level}]: ${info.message}`
-  )
-);
-
-// Formato para producción (JSON)
-const prodFormat = winston.format.combine(
+// Define log format
+const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
   winston.format.json()
 );
 
-// Determinar qué nivel de log usar según el ambiente
-const level = () => {
-  const env = process.env.NODE_ENV || 'development';
-  const isDevelopment = env === 'development';
-  return isDevelopment ? 'debug' : 'warn';
-};
+// Define console format for development
+const consoleFormat = winston.format.combine(
+  winston.format.colorize(),
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+    let msg = `${timestamp} [${level}]: ${message}`;
+    if (Object.keys(metadata).length > 0) {
+      msg += ` ${JSON.stringify(metadata)}`;
+    }
+    return msg;
+  })
+);
 
-// Configurar transports (dónde se guardan los logs)
+// Create transports
 const transports = [
-  // Consola
+  // Console transport
   new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      winston.format.printf(({ timestamp, level, message, ...metadata }) => {
-        let msg = `${timestamp} [${level}]: ${message}`;
-        
-        // Si hay metadatos adicionales, los agregamos
-        if (Object.keys(metadata).length > 0) {
-          msg += ` ${JSON.stringify(metadata, null, 2)}`;
-        }
-        
-        return msg;
-      })
-    )
+    format: consoleFormat,
+    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
   }),
-  
-  // Archivo de errores
-  new winston.transports.File({
-    filename: path.join('logs', 'error.log'),
+
+  // Error log file with rotation
+  new DailyRotateFile({
+    filename: path.join('logs', 'error-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
     level: 'error',
-    maxsize: 5242880,
-    maxFiles: 5,
-    format: winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      winston.format.printf(({ timestamp, level, message, ...metadata }) => {
-        let msg = `${timestamp} [${level}]: ${message}`;
-        
-        if (Object.keys(metadata).length > 0) {
-          msg += ` ${JSON.stringify(metadata)}`;
-        }
-        
-        return msg;
-      })
-    )
+    format: logFormat,
+    maxSize: '20m',
+    maxFiles: '14d',
+    zippedArchive: true
   }),
-  
-  // Archivo de todos los logs
-  new winston.transports.File({
-    filename: path.join('logs', 'combined.log'),
-    maxsize: 5242880,
-    maxFiles: 5,
-    format: winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      winston.format.printf(({ timestamp, level, message, ...metadata }) => {
-        let msg = `${timestamp} [${level}]: ${message}`;
-        
-        if (Object.keys(metadata).length > 0) {
-          msg += ` ${JSON.stringify(metadata)}`;
-        }
-        
-        return msg;
-      })
-    )
+
+  // Combined log file with rotation
+  new DailyRotateFile({
+    filename: path.join('logs', 'combined-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    format: logFormat,
+    maxSize: '20m',
+    maxFiles: '14d',
+    zippedArchive: true
+  }),
+
+  // Audit log file with rotation
+  new DailyRotateFile({
+    filename: path.join('logs', 'audit-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    format: logFormat,
+    maxSize: '20m',
+    maxFiles: '30d',
+    zippedArchive: true,
+    level: 'info'
   })
 ];
 
-// Crear el logger
+// Create logger instance
 const logger = winston.createLogger({
-  level: level(),
-  levels,
-  format: process.env.NODE_ENV === 'production' ? prodFormat : devFormat,
+  level: process.env.LOG_LEVEL || 'info',
+  format: logFormat,
   transports,
-  // No terminar el proceso en errores no capturados
   exitOnError: false
 });
 
-module.exports = logger;
+// Create specialized loggers
+const auditLogger = winston.createLogger({
+  level: 'info',
+  format: logFormat,
+  transports: [
+    new DailyRotateFile({
+      filename: path.join('logs', 'audit-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      maxSize: '20m',
+      maxFiles: '30d',
+      zippedArchive: true
+    })
+  ]
+});
+
+// Audit log function
+const logAudit = (action, userId, details = {}, context = {}) => {
+  const auditData = {
+    action,
+    userId,
+    timestamp: new Date().toISOString(),
+    details,
+    ip: context.ip,
+    userAgent: context.userAgent,
+    method: context.method,
+    path: context.path,
+    query: context.query,
+    body: context.body
+  };
+
+  auditLogger.info('AUDIT_LOG', auditData);
+  return auditData;
+};
+
+// Sanitize sensitive data from body
+const sanitizeBody = (body) => {
+  if (!body) return {};
+  
+  const sanitized = { ...body };
+  const sensitiveFields = ['password', 'token', 'refreshToken', 'accessToken'];
+  
+  sensitiveFields.forEach(field => {
+    if (sanitized[field]) {
+      sanitized[field] = '***REDACTED***';
+    }
+  });
+  
+  return sanitized;
+};
+
+// HTTP request logger middleware
+const httpLogger = (req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const logData = {
+      method: req.method,
+      url: req.originalUrl,
+      status: res.statusCode,
+      duration: `${duration}ms`,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      userId: req.user?.id
+    };
+
+    if (res.statusCode >= 400) {
+      logger.warn('HTTP Request', logData);
+    } else {
+      logger.info('HTTP Request', logData);
+    }
+  });
+
+  next();
+};
+
+module.exports = {
+  logger,
+  auditLogger,
+  logAudit,
+  httpLogger
+};

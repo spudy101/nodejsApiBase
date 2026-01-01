@@ -7,10 +7,10 @@
 #   terraform init -backend-config=environments/dev/backend.hcl
 # ============================================================================
 
-bucket         = "nodejs-api-terraform-state"
+bucket         = "nodejs-api-terraform-state-192606546527"
 key            = "dev/terraform.tfstate"
 region         = "us-east-1"
-dynamodb_table = "nodejs-api-terraform-locks"
+dynamodb_table = "terraform-state-lock"
 encrypt        = true
 
 # Configuración adicional
