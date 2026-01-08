@@ -340,13 +340,11 @@ npm run test:coverage -- --verbose
 - ✅ Falla sin token
 
 **GET /api/auth/me:**
+- ✅ Verifica token válido
+- ✅ Retorna inválido con bad token
 - ✅ Obtiene usuario actual
 - ✅ Falla sin token
 - ✅ Falla con token expirado
-
-**GET /api/auth/verify:**
-- ✅ Verifica token válido
-- ✅ Retorna inválido con bad token
 
 **Total:** 29 test cases
 **DB:** SQLite in-memory

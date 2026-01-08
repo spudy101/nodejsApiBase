@@ -1,4 +1,20 @@
 // src/constants/index.js
+
+/**
+ * Parse environment variable as integer with default value
+ */
+const parseIntEnv = (value, defaultValue) => {
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
+
+/**
+ * Parse environment variable as boolean
+ */
+const parseBoolEnv = (value) => {
+  return value === 'true';
+};
+
 module.exports = {
   // HTTP Status Codes
   HTTP_STATUS: {
@@ -18,29 +34,29 @@ module.exports = {
 
   // JWT Configuration
   JWT: {
-    ACCESS_TOKEN_EXPIRY: '15m',
-    REFRESH_TOKEN_EXPIRY: '7d',
-    ISSUER: 'api-backend',
-    AUDIENCE: 'api-client'
+    ACCESS_TOKEN_EXPIRY: process.env.JWT_ACCESS_TOKEN_EXPIRY || '15m',
+    REFRESH_TOKEN_EXPIRY: process.env.JWT_REFRESH_TOKEN_EXPIRY || '7d',
+    ISSUER: process.env.JWT_ISSUER || 'api-backend',
+    AUDIENCE: process.env.JWT_AUDIENCE || 'api-client'
   },
 
   // Rate Limiting
   RATE_LIMIT: {
-    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-    MAX_REQUESTS: 100,
-    AUTH_WINDOW_MS: 15 * 60 * 1000,
-    AUTH_MAX_REQUESTS: 10,
+    WINDOW_MS: parseIntEnv(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000), // 15 minutes
+    MAX_REQUESTS: parseIntEnv(process.env.RATE_LIMIT_MAX_REQUESTS, 100),
+    AUTH_WINDOW_MS: parseIntEnv(process.env.RATE_LIMIT_AUTH_WINDOW_MS, 15 * 60 * 1000),
+    AUTH_MAX_REQUESTS: parseIntEnv(process.env.RATE_LIMIT_AUTH_MAX_REQUESTS, 10),
     SKIP_SUCCESS: false
   },
 
   // Login Attempts
   LOGIN_ATTEMPTS: {
-    MAX_ATTEMPTS: 5,
-    BLOCK_DURATION_MS: 15 * 60 * 1000, // 15 minutes
-    RESET_AFTER_MS: 60 * 60 * 1000 // 1 hour
+    MAX_ATTEMPTS: parseIntEnv(process.env.LOGIN_MAX_ATTEMPTS, 5),
+    BLOCK_DURATION_MS: parseIntEnv(process.env.LOGIN_BLOCK_DURATION_MS, 15 * 60 * 1000), // 15 minutes
+    RESET_AFTER_MS: parseIntEnv(process.env.LOGIN_RESET_AFTER_MS, 60 * 60 * 1000) // 1 hour
   },
 
-  // Redis Keys
+  // Redis Keys (no necesitan ser configurables)
   REDIS_KEYS: {
     RATE_LIMIT: 'rate_limit:',
     REQUEST_LOCK: 'req_lock:',
@@ -50,13 +66,13 @@ module.exports = {
     REFRESH_TOKEN: 'refresh:token:'
   },
 
-  // Redis TTL
+  // Redis TTL (in seconds)
   REDIS_TTL: {
-    RATE_LIMIT: 900, // 15 minutes
-    REQUEST_LOCK: 30, // 30 seconds
-    IDEMPOTENCY: 86400, // 24 hours
-    BLACKLIST_TOKEN: 900, // 15 minutes
-    REFRESH_TOKEN: 604800 // 7 days
+    RATE_LIMIT: parseIntEnv(process.env.REDIS_TTL_RATE_LIMIT, 900), // 15 minutes
+    REQUEST_LOCK: parseIntEnv(process.env.REDIS_TTL_REQUEST_LOCK, 30), // 30 seconds
+    IDEMPOTENCY: parseIntEnv(process.env.REDIS_TTL_IDEMPOTENCY, 86400), // 24 hours
+    BLACKLIST_TOKEN: parseIntEnv(process.env.REDIS_TTL_BLACKLIST_TOKEN, 900), // 15 minutes
+    REFRESH_TOKEN: parseIntEnv(process.env.REDIS_TTL_REFRESH_TOKEN, 604800) // 7 days
   },
 
   // User Roles
@@ -81,17 +97,17 @@ module.exports = {
 
   // Pagination
   PAGINATION: {
-    DEFAULT_PAGE: 1,
-    DEFAULT_LIMIT: 10,
-    MAX_LIMIT: 100
+    DEFAULT_PAGE: parseIntEnv(process.env.PAGINATION_DEFAULT_PAGE, 1),
+    DEFAULT_LIMIT: parseIntEnv(process.env.PAGINATION_DEFAULT_LIMIT, 10),
+    MAX_LIMIT: parseIntEnv(process.env.PAGINATION_MAX_LIMIT, 100)
   },
 
   // Request Lock
   REQUEST_LOCK: {
-    TIMEOUT_MS: 30000 // 30 seconds
+    TIMEOUT_MS: parseIntEnv(process.env.REQUEST_LOCK_TIMEOUT_MS, 30000) // 30 seconds
   },
 
-  // Error Codes
+  // Error Codes (no necesitan ser configurables)
   ERROR_CODES: {
     VALIDATION_ERROR: 'VALIDATION_ERROR',
     AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
@@ -105,7 +121,7 @@ module.exports = {
     REQUEST_LOCK_ERROR: 'REQUEST_LOCK_ERROR'
   },
 
-  // Validation Messages
+  // Validation Messages (no necesitan ser configurables)
   VALIDATION_MESSAGES: {
     REQUIRED_FIELD: 'Este campo es requerido',
     INVALID_EMAIL: 'Email inválido',

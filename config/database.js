@@ -20,7 +20,7 @@ const baseConfig = {
       underscored: false,
       freezeTableName: true
     },
-    logging: console.log,
+    logging: process.env.DB_LOGGING === 'true' ? console.log : false,
     pool: {
       max: 5,
       min: 0,

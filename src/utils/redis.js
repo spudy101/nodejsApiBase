@@ -10,7 +10,6 @@ class RedisClient {
   }
 
   async connect() {
-    // Si no hay configuración de Redis, modo sin Redis
     if (!process.env.REDIS_HOST && !process.env.REDIS_URL) {
       logger.info('📝 Redis not configured - running without cache');
       this.isEnabled = false;
@@ -65,7 +64,6 @@ class RedisClient {
         logger.info('Redis reconnecting...');
       });
 
-      // Intentar conectar
       await this.client.connect();
       await this.client.ping();
       
@@ -108,7 +106,6 @@ class RedisClient {
     return this.isEnabled && this.isConnected && this.client !== null;
   }
 
-  // Métodos con fallback seguro
   async set(key, value, ttl = null) {
     if (!this.isAvailable()) {
       logger.debug('Redis not available, skipping SET', { key });
@@ -144,7 +141,7 @@ class RedisClient {
       try {
         return JSON.parse(value);
       } catch {
-        return value; // Retorna string si no es JSON
+        return value;
       }
     } catch (error) {
       logger.error('Redis GET error', { key, error: error.message });
@@ -153,19 +150,20 @@ class RedisClient {
     }
   }
 
+  // 🔥 FIX: Retorna número en lugar de boolean
   async del(key) {
     if (!this.isAvailable()) {
       logger.debug('Redis not available, skipping DEL', { key });
-      return false;
+      return 0;
     }
 
     try {
-      await this.client.del(key);
-      return true;
+      const deleted = await this.client.del(key);
+      return deleted; // Retorna 1 si eliminó, 0 si no existía
     } catch (error) {
       logger.error('Redis DEL error', { key, error: error.message });
       this.isEnabled = false;
-      return false;
+      return 0;
     }
   }
 
@@ -242,7 +240,6 @@ class RedisClient {
   }
 }
 
-// Singleton
 const redisClient = new RedisClient();
 
 module.exports = redisClient;

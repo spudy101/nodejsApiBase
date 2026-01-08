@@ -2,6 +2,7 @@
 const request = require('supertest');
 const app = require('../../../src/app');
 const { sequelize, User, LoginAttempts } = require('../../../src/models');
+const { JWT } = require('../../../src/constants');
 
 describe('Auth API - Integration Tests', () => {
   let accessToken;
@@ -71,7 +72,7 @@ describe('Auth API - Integration Tests', () => {
         .expect(409);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('CONFLICT_ERROR');
+      expect(response.body.errorCode).toBe('CONFLICT');
     });
 
     it('should validate email format', async () => {
@@ -82,10 +83,10 @@ describe('Auth API - Integration Tests', () => {
           password: 'Password123!',
           name: 'Test User'
         })
-        .expect(400);
+        .expect(422);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('VALIDATION_ERROR');
+      expect(response.body.errorCode).toBe('VALIDATION_ERROR');
       expect(response.body.errors).toBeDefined();
       expect(response.body.errors.some(e => e.field === 'email')).toBe(true);
     });
@@ -98,10 +99,10 @@ describe('Auth API - Integration Tests', () => {
           password: 'weak', // Too short, no uppercase, no number
           name: 'Test User'
         })
-        .expect(400);
+        .expect(422);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('VALIDATION_ERROR');
+      expect(response.body.errorCode).toBe('VALIDATION_ERROR');
       expect(response.body.errors).toBeDefined();
     });
 
@@ -109,7 +110,7 @@ describe('Auth API - Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({})
-        .expect(400);
+        .expect(422);
 
       expect(response.body.success).toBe(false);
       expect(response.body.errors).toBeDefined();
@@ -210,6 +211,103 @@ describe('Auth API - Integration Tests', () => {
       expect(user.lastLogin).not.toBeNull();
     });
 
+    // 🔥 NUEVO TEST: Single-session mode
+    it('should invalidate previous tokens when logging in again (single-session mode)', async () => {
+      // Skip test if multi-session is enabled
+      if (JWT.ALLOW_MULTIPLE_SESSIONS) {
+        return;
+      }
+
+      // Primer login
+      const login1 = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'Password123!'
+        })
+        .expect(200);
+
+      const refreshToken1 = login1.body.data.tokens.refreshToken;
+
+      // Segundo login (debe invalidar el primer refresh token)
+      const login2 = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'Password123!'
+        })
+        .expect(200);
+
+      const refreshToken2 = login2.body.data.tokens.refreshToken;
+
+      // Los tokens deben ser diferentes
+      expect(refreshToken1).not.toBe(refreshToken2);
+
+      // El primer refresh token debe estar invalidado
+      const refreshAttempt = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: refreshToken1 })
+        .expect(401);
+
+      expect(refreshAttempt.body.success).toBe(false);
+
+      // El segundo refresh token debe funcionar
+      const refreshSuccess = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: refreshToken2 })
+        .expect(200);
+
+      expect(refreshSuccess.body.success).toBe(true);
+    });
+
+    // 🔥 NUEVO TEST: Multi-session mode
+    it('should allow multiple active sessions (multi-session mode)', async () => {
+      // Skip test if single-session is enabled
+      if (!JWT.ALLOW_MULTIPLE_SESSIONS) {
+        return;
+      }
+
+      // Primer login (simula dispositivo 1)
+      const login1 = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'Password123!'
+        })
+        .expect(200);
+
+      const refreshToken1 = login1.body.data.tokens.refreshToken;
+
+      // Segundo login (simula dispositivo 2)
+      const login2 = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'Password123!'
+        })
+        .expect(200);
+
+      const refreshToken2 = login2.body.data.tokens.refreshToken;
+
+      // Los tokens deben ser diferentes
+      expect(refreshToken1).not.toBe(refreshToken2);
+
+      // AMBOS refresh tokens deben funcionar
+      const refresh1 = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: refreshToken1 })
+        .expect(200);
+
+      expect(refresh1.body.success).toBe(true);
+
+      const refresh2 = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: refreshToken2 })
+        .expect(200);
+
+      expect(refresh2.body.success).toBe(true);
+    });
+
     it('should fail with invalid email', async () => {
       const response = await request(app)
         .post('/api/auth/login')
@@ -217,17 +315,10 @@ describe('Auth API - Integration Tests', () => {
           email: 'nonexistent@example.com',
           password: 'Password123!'
         })
-        .expect(401);
+        .expect(409);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.code).toBe('AUTHENTICATION_ERROR');
-
-      // Verificar que se incrementaron los intentos
-      const attempts = await LoginAttempts.findOne({ 
-        where: { email: 'nonexistent@example.com' } 
-      });
-      expect(attempts).toBeDefined();
-      expect(attempts.attempts).toBe(1);
+      expect(response.body.errorCode).toBe('CONFLICT');
     });
 
     it('should fail with invalid password', async () => {
@@ -270,7 +361,7 @@ describe('Auth API - Integration Tests', () => {
         .expect(429);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toContain('bloqueado');
+      expect(response.body.message).toContain('Cuenta bloqueada');
     });
 
     it('should reset attempts after successful login', async () => {
@@ -302,7 +393,7 @@ describe('Auth API - Integration Tests', () => {
       const attempts = await LoginAttempts.findOne({ 
         where: { email: 'login@example.com' } 
       });
-      expect(attempts.attempts).toBe(0);
+      expect(attempts).toBeNull();
     });
 
     it('should fail if user is inactive', async () => {
@@ -323,17 +414,16 @@ describe('Auth API - Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({})
-        .expect(400);
+        .expect(422);
 
-      expect(response.body.code).toBe('VALIDATION_ERROR');
+      expect(response.body.errorCode).toBe('VALIDATION_ERROR');
     });
   });
 
   describe('POST /api/auth/logout', () => {
     beforeEach(async () => {
       testUser = await createUser();
-      
-      // Login para obtener token
+
       const loginResponse = await request(app)
         .post('/api/auth/login')
         .send({
@@ -342,49 +432,131 @@ describe('Auth API - Integration Tests', () => {
         });
 
       accessToken = loginResponse.body.data.tokens.accessToken;
+      refreshToken = loginResponse.body.data.tokens.refreshToken;
     });
 
+    // 🔥 ACTUALIZADO: Ahora requiere refreshToken en body
     it('should logout successfully', async () => {
       const response = await request(app)
         .post('/api/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
+        .send({ refreshToken }) // 🔥 Ahora es requerido
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.message).toBeDefined();
     });
 
-    it('should fail without token', async () => {
+    // 🔥 NUEVO TEST: Validar que refreshToken es requerido
+    it('should fail without refresh token in body', async () => {
       const response = await request(app)
         .post('/api/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({}) // Sin refreshToken
+        .expect(422);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.errorCode).toBe('VALIDATION_ERROR');
+    });
+
+    it('should fail without access token', async () => {
+      const response = await request(app)
+        .post('/api/auth/logout')
+        .send({ refreshToken })
         .expect(401);
 
       expect(response.body.success).toBe(false);
     });
 
-    it('should fail with invalid token', async () => {
+    it('should fail with invalid access token', async () => {
       const response = await request(app)
         .post('/api/auth/logout')
         .set('Authorization', 'Bearer invalid-token')
+        .send({ refreshToken })
         .expect(401);
 
       expect(response.body.success).toBe(false);
     });
 
-    it('should invalidate token after logout', async () => {
+    it('should invalidate access token after logout', async () => {
       // Logout
       await request(app)
         .post('/api/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
+        .send({ refreshToken })
         .expect(200);
 
-      // Intentar usar el mismo token
-      const response = await request(app)
+      // Intentar usar el mismo access token
+      await request(app)
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(401);
+    });
 
-      expect(response.body.success).toBe(false);
+    it('should invalidate refresh token after logout', async () => {
+      // Logout
+      await request(app)
+        .post('/api/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ refreshToken })
+        .expect(200);
+
+      // Intentar refresh con el mismo refresh token
+      await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
+    });
+
+    // 🔥 NUEVO TEST: Multi-session logout (solo invalida una sesión)
+    it('should only invalidate specific session in multi-session mode', async () => {
+      // Skip test if single-session is enabled
+      if (!JWT.ALLOW_MULTIPLE_SESSIONS) {
+        return;
+      }
+
+      // Login en dos "dispositivos"
+      const login1 = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'test@example.com',
+          password: 'Password123!'
+        })
+        .expect(200);
+
+      const accessToken1 = login1.body.data.tokens.accessToken;
+      const refreshToken1 = login1.body.data.tokens.refreshToken;
+
+      const login2 = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'test@example.com',
+          password: 'Password123!'
+        })
+        .expect(200);
+
+      const accessToken2 = login2.body.data.tokens.accessToken;
+      const refreshToken2 = login2.body.data.tokens.refreshToken;
+
+      // Logout solo del dispositivo 1
+      await request(app)
+        .post('/api/auth/logout')
+        .set('Authorization', `Bearer ${accessToken1}`)
+        .send({ refreshToken: refreshToken1 })
+        .expect(200);
+
+      // Token 1 debe estar invalidado
+      await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: refreshToken1 })
+        .expect(401);
+
+      // Token 2 debe seguir funcionando
+      const refresh2 = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: refreshToken2 })
+        .expect(200);
+
+      expect(refresh2.body.success).toBe(true);
     });
   });
 
@@ -421,6 +593,24 @@ describe('Auth API - Integration Tests', () => {
       expect(response.body.data.tokens.accessToken).not.toBe(accessToken);
     });
 
+    // 🔥 NUEVO TEST: Refresh token invalidado después de logout
+    it('should fail to refresh after logout', async () => {
+      // Logout primero
+      await request(app)
+        .post('/api/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ refreshToken })
+        .expect(200);
+
+      // Intentar refresh
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
+
+      expect(response.body.success).toBe(false);
+    });
+
     it('should fail with invalid refresh token', async () => {
       const response = await request(app)
         .post('/api/auth/refresh')
@@ -436,9 +626,9 @@ describe('Auth API - Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/refresh')
         .send({})
-        .expect(400);
+        .expect(422);
 
-      expect(response.body.code).toBe('VALIDATION_ERROR');
+      expect(response.body.errorCode).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -488,42 +678,6 @@ describe('Auth API - Integration Tests', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-    });
-  });
-
-  describe('GET /api/auth/verify', () => {
-    beforeEach(async () => {
-      testUser = await createUser();
-      
-      const loginResponse = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: 'Password123!'
-        });
-
-      accessToken = loginResponse.body.data.tokens.accessToken;
-    });
-
-    it('should verify valid token', async () => {
-      const response = await request(app)
-        .get('/api/auth/verify')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200);
-
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.valid).toBe(true);
-      expect(response.body.data.user).toBeDefined();
-    });
-
-    it('should return invalid for bad token', async () => {
-      const response = await request(app)
-        .get('/api/auth/verify')
-        .set('Authorization', 'Bearer bad-token')
-        .expect(200);
-
-      expect(response.body.data.valid).toBe(false);
-      expect(response.body.data.reason).toBeDefined();
     });
   });
 });

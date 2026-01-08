@@ -28,10 +28,6 @@ class App {
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-    // ✅ SANITIZACIÓN (previene inyección SQL/NoSQL)
-    // this.app.use(SecurityMiddleware.sanitizeInput());
-    // this.app.use(SecurityMiddleware.preventHPP());
-
     // Contexto audit
     this.app.use(auditContextMiddleware);
 
