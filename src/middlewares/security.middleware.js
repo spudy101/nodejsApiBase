@@ -1,7 +1,6 @@
 // src/middleware/security.middleware.js
 const helmet = require('helmet');
 const cors = require('cors');
-const mongoSanitize = require('express-mongo-sanitize');
 const { logger } = require('../utils/logger');
 
 class SecurityMiddleware {
@@ -60,23 +59,6 @@ class SecurityMiddleware {
   }
 
   /**
-   * Sanitize user input
-   */
-  static sanitize() {
-    return mongoSanitize({
-      replaceWith: '_',
-      allowDots: true,
-      onSanitize: ({ req, key }) => {
-        logger.warn('Sanitized malicious input', {
-          path: req.path,
-          key,
-          ip: req.ip
-        });
-      }
-    });
-  }
-
-  /**
    * Add security headers manually
    */
   static addSecurityHeaders(req, res, next) {
@@ -86,20 +68,6 @@ class SecurityMiddleware {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     res.removeHeader('X-Powered-By');
     next();
-  }
-
-  /**
-   * Prevent parameter pollution
-   */
-  static preventParameterPollution(parameterNames = []) {
-    return (req, res, next) => {
-      parameterNames.forEach(param => {
-        if (Array.isArray(req.query[param])) {
-          req.query[param] = req.query[param][0];
-        }
-      });
-      next();
-    };
   }
 }
 

@@ -28,6 +28,20 @@ class AuthValidator {
     ];
   }
 
+  /**
+   * Validación para logout
+   */
+  static logout() {
+    return [
+      body('refreshToken')
+        .notEmpty()
+        .withMessage('Refresh token is required')
+        .isString()
+        .withMessage('Refresh token must be a string')
+        .trim()
+    ];
+  }
+
   static login() {
     return [
       body('email')

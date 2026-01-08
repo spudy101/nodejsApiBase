@@ -9,11 +9,6 @@ const IdempotencyMiddleware = require('../middlewares/idempotency.middleware');
 const ValidatorUtil = require('../utils/validators');
 const ErrorMiddleware = require('../middlewares/error.middleware');
 
-/**
- * @route   POST /api/auth/register
- * @desc    Register new user
- * @access  Public
- */
 router.post(
   '/register',
   RateLimitMiddleware.authLimiter(),
@@ -23,35 +18,22 @@ router.post(
   ErrorMiddleware.asyncHandler(authController.register.bind(authController))
 );
 
-/**
- * @route   POST /api/auth/login
- * @desc    Login user
- * @access  Public
- */
 router.post(
   '/login',
-RateLimitMiddleware.authLimiter(),
+  RateLimitMiddleware.authLimiter(),
   authValidator.login(),
   ValidatorUtil.handleValidationErrors,
   ErrorMiddleware.asyncHandler(authController.login.bind(authController))
 );
 
-/**
- * @route   POST /api/auth/logout
- * @desc    Logout user
- * @access  Private
- */
 router.post(
   '/logout',
   AuthMiddleware.verifyToken,
+  authValidator.logout(),
+  ValidatorUtil.handleValidationErrors,
   ErrorMiddleware.asyncHandler(authController.logout.bind(authController))
 );
 
-/**
- * @route   POST /api/auth/refresh
- * @desc    Refresh access token
- * @access  Public
- */
 router.post(
   '/refresh',
   RateLimitMiddleware.authLimiter(),
@@ -60,15 +42,49 @@ router.post(
   ErrorMiddleware.asyncHandler(authController.refreshToken.bind(authController))
 );
 
-/**
- * @route   GET /api/auth/me
- * @desc    Get current user
- * @access  Private
- */
 router.get(
   '/me',
   AuthMiddleware.verifyToken,
   ErrorMiddleware.asyncHandler(authController.me.bind(authController))
+);
+
+/**
+ * ==============================================
+ * Logica para cerrar y ver sesiones, segun lo guardado en cache (Estas solo son de prueba por eso no tienen dtos o validators)
+ * ==============================================  
+*/
+
+/**
+ * @route   GET /api/auth/sessions
+ * @desc    Get active sessions
+ * @access  Private
+ */
+router.get(
+  '/sessions',
+  AuthMiddleware.verifyToken,
+  ErrorMiddleware.asyncHandler(authController.getSessions.bind(authController))
+);
+
+/**
+ * @route   DELETE /api/auth/sessions/:sessionId
+ * @desc    Logout specific session
+ * @access  Private
+ */
+router.delete(
+  '/sessions/:sessionId',
+  AuthMiddleware.verifyToken,
+  ErrorMiddleware.asyncHandler(authController.logoutSession.bind(authController))
+);
+
+/**
+ * @route   DELETE /api/auth/sessions
+ * @desc    Logout all sessions
+ * @access  Private
+ */
+router.delete(
+  '/sessions',
+  AuthMiddleware.verifyToken,
+  ErrorMiddleware.asyncHandler(authController.logoutAllSessions.bind(authController))
 );
 
 module.exports = router;

@@ -2,6 +2,7 @@
 const userRepository = require('../repository/user.repository');
 const loginAttemptsRepository = require('../repository/loginAttempts.repository');
 const JWTUtil = require('../utils/jwt');
+const DeviceFingerprint = require('../utils/deviceFingerprint');
 const AppError = require('../utils/AppError');
 const { AuthResponseDTO } = require('../dto/auth.dto');
 const { logger, logAudit } = require('../utils/logger');
@@ -10,20 +11,51 @@ const { AUDIT_ACTIONS } = require('../constants');
 
 class AuthService {
   /**
+   * Genera device fingerprint desde auditContext
+   * @private
+   */
+  _getDeviceFingerprint(auditContext) {
+    // Construye un objeto req-like desde auditContext
+    const pseudoReq = {
+      headers: {
+        'user-agent': auditContext.userAgent || 'unknown'
+      },
+      ip: auditContext.ip || 'unknown',
+      connection: {
+        remoteAddress: auditContext.ip || 'unknown'
+      }
+    };
+    
+    return DeviceFingerprint.generate(pseudoReq);
+  }
+
+  /**
+   * Genera metadata del dispositivo desde auditContext
+   * @private
+   */
+  _getDeviceMetadata(auditContext) {
+    const { browser, os } = DeviceFingerprint.parseUserAgent(
+      auditContext.userAgent || 'unknown'
+    );
+    
+    return {
+      ip: auditContext.ip || 'unknown',
+      browser,
+      os,
+      userAgent: auditContext.userAgent || 'unknown'
+    };
+  }
+
+  /**
    * Register new user
-   * @param {RegisterDTO} registerDTO - DTO con datos de registro
-   * @param {Object} auditContext - Contexto de auditoría
-   * @returns {AuthResponseDTO} Usuario y tokens
    */
   async register(registerDTO, auditContext) {
-    // Validación de negocio: Check if email already exists
     const existingUser = await userRepository.findByEmail(registerDTO.email);
     
     if (existingUser) {
       throw AppError.conflict(ERRORS.USER_ALREADY_EXISTS);
     }
 
-    // Create user
     const user = await userRepository.create({
       email: registerDTO.email,
       password: registerDTO.password,
@@ -31,10 +63,11 @@ class AuthService {
       role: registerDTO.role
     });
 
-    // Generate tokens
-    const tokens = await JWTUtil.generateTokenPair(user);
+    const deviceFingerprint = this._getDeviceFingerprint(auditContext);
+    const deviceMetadata = this._getDeviceMetadata(auditContext);
+    
+    const tokens = await JWTUtil.generateTokenPair(user, deviceFingerprint, deviceMetadata);
 
-    // Audit log
     logAudit(AUDIT_ACTIONS.USER_REGISTER, user.id, {
       email: user.email,
       role: user.role
@@ -50,15 +83,17 @@ class AuthService {
 
   /**
    * Login user
-   * @param {LoginDTO} loginDTO - DTO con credenciales
-   * @param {Object} auditContext - Contexto de auditoría
-   * @returns {AuthResponseDTO} Usuario y tokens
    */
   async login(loginDTO, auditContext) {
     const { email, password } = loginDTO;
     const ipAddress = auditContext.ip;
 
-    // Validación de negocio: Check if account is blocked
+    const existingUser = await userRepository.findByEmail(email);
+    
+    if (!existingUser) {
+      throw AppError.conflict(ERRORS.USER_NOT_FOUND);
+    }
+
     const isBlocked = await loginAttemptsRepository.isBlocked(email);
     
     if (isBlocked) {
@@ -68,7 +103,6 @@ class AuthService {
       );
     }
 
-    // Validación de negocio: Find user
     const user = await userRepository.findActiveByEmail(email);
 
     if (!user) {
@@ -76,7 +110,6 @@ class AuthService {
       throw AppError.unauthorized(ERRORS.INVALID_CREDENTIALS);
     }
 
-    // Validación de negocio: Verify password
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
@@ -84,16 +117,14 @@ class AuthService {
       throw AppError.unauthorized(ERRORS.INVALID_CREDENTIALS);
     }
 
-    // Reset login attempts on successful login
     await loginAttemptsRepository.resetAttempts(email);
-
-    // Update last login
     await userRepository.updateLastLogin(user.id);
 
-    // Generate tokens
-    const tokens = await JWTUtil.generateTokenPair(user);
+    const deviceFingerprint = this._getDeviceFingerprint(auditContext);
+    const deviceMetadata = this._getDeviceMetadata(auditContext);
+    
+    const tokens = await JWTUtil.generateTokenPair(user, deviceFingerprint, deviceMetadata);
 
-    // Audit log
     logAudit(AUDIT_ACTIONS.USER_LOGIN, user.id, {
       email: user.email,
       ipAddress
@@ -109,19 +140,15 @@ class AuthService {
 
   /**
    * Logout user
-   * @param {string} userId - ID del usuario
-   * @param {string} token - Access token a invalidar
-   * @param {Object} auditContext - Contexto de auditoría
-   * @returns {Object} Mensaje de confirmación
    */
-  async logout(userId, token, auditContext) {
-    // Blacklist access token
-    await JWTUtil.blacklistToken(token);
+  async logout(userId, accessToken, refreshTokenDTO, auditContext) {
+    const { refreshToken } = refreshTokenDTO;
 
-    // Invalidate refresh token
-    await JWTUtil.invalidateRefreshToken(userId);
+    await JWTUtil.blacklistToken(accessToken);
 
-    // Audit log
+    const deviceFingerprint = this._getDeviceFingerprint(auditContext);
+    await JWTUtil.invalidateRefreshToken(refreshToken, deviceFingerprint);
+
     logAudit(AUDIT_ACTIONS.USER_LOGOUT, userId, {}, auditContext);
 
     logger.info('User logged out successfully', { userId });
@@ -131,32 +158,29 @@ class AuthService {
 
   /**
    * Refresh access token
-   * @param {RefreshTokenDTO} refreshTokenDTO - DTO con refresh token
-   * @param {Object} auditContext - Contexto de auditoría
-   * @returns {AuthResponseDTO} Usuario y nuevos tokens
    */
   async refreshToken(refreshTokenDTO, auditContext) {
     const { refreshToken } = refreshTokenDTO;
 
-    // Verify refresh token
     const decoded = JWTUtil.verifyRefreshToken(refreshToken);
 
-    // Verify stored refresh token
-    const isValid = await JWTUtil.verifyStoredRefreshToken(decoded.id, refreshToken);
+    const deviceFingerprint = this._getDeviceFingerprint(auditContext);
+    const isValid = await JWTUtil.verifyStoredRefreshToken(refreshToken, deviceFingerprint);
 
     if (!isValid) {
       throw AppError.unauthorized(ERRORS.TOKEN_INVALID);
     }
 
-    // Get user
     const user = await userRepository.findById(decoded.id);
 
     if (!user || !user.isActive) {
       throw AppError.unauthorized(ERRORS.USER_NOT_FOUND);
     }
 
-    // Generate new token pair
-    const tokens = await JWTUtil.generateTokenPair(user);
+    await JWTUtil.invalidateRefreshToken(refreshToken, deviceFingerprint);
+
+    const deviceMetadata = this._getDeviceMetadata(auditContext);
+    const tokens = await JWTUtil.generateTokenPair(user, deviceFingerprint, deviceMetadata);
 
     logger.info('Token refreshed successfully', { userId: user.id });
 
@@ -164,33 +188,51 @@ class AuthService {
   }
 
   /**
-   * Verify token validity
-   * @param {string} token - Token a verificar
-   * @returns {Object} Resultado de validación
+   * Get active sessions
    */
-  async verifyToken(token) {
-    try {
-      // Check if blacklisted
-      const isBlacklisted = await JWTUtil.isTokenBlacklisted(token);
-      
-      if (isBlacklisted) {
-        return { valid: false, reason: 'Token blacklisted' };
-      }
+  async getActiveSessions(userId, auditContext) {
+    const sessions = await JWTUtil.getActiveSessions(userId);
+    
+    const currentFingerprint = this._getDeviceFingerprint(auditContext);
+    
+    const sessionsWithCurrent = sessions.map(session => ({
+      ...session,
+      isCurrent: session.sessionId === currentFingerprint
+    }));
 
-      // Verify token
-      const decoded = JWTUtil.verifyAccessToken(token);
+    logger.info('Active sessions retrieved', { userId, count: sessions.length });
 
-      // Check user exists and is active
-      const user = await userRepository.findById(decoded.id);
+    return sessionsWithCurrent;
+  }
 
-      if (!user || !user.isActive) {
-        return { valid: false, reason: 'User not found or inactive' };
-      }
-
-      return { valid: true, user: user.toJSON() };
-    } catch (error) {
-      return { valid: false, reason: error.message };
+  /**
+   * Logout specific session
+   */
+  async logoutSession(userId, sessionId, auditContext) {
+    const deleted = await JWTUtil.invalidateSession(userId, sessionId);
+    
+    if (!deleted) {
+      throw AppError.notFound('Sesión no encontrada');
     }
+
+    logAudit(AUDIT_ACTIONS.USER_LOGOUT, userId, { sessionId }, auditContext);
+
+    logger.info('Session logged out', { userId, sessionId });
+
+    return { message: 'Sesión cerrada exitosamente' };
+  }
+
+  /**
+   * Logout all sessions
+   */
+  async logoutAllSessions(userId, auditContext) {
+    const count = await JWTUtil.invalidateAllSessions(userId);
+
+    logAudit(AUDIT_ACTIONS.USER_LOGOUT, userId, { allSessions: true, count }, auditContext);
+
+    logger.info('All sessions logged out', { userId, count });
+
+    return { message: `${count} sesiones cerradas exitosamente` };
   }
 }
 
