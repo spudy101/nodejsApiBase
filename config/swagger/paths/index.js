@@ -1,18 +1,20 @@
+// config/swagger/paths/index.js
 /**
  * Centralizar todos los paths
+ * Combina todos los paths de diferentes módulos en un solo objeto
  */
 
-const authPaths = require('./auth.paths');
-const productPaths = require('./products.paths');
-// const orderPaths = require('./orders.paths');
-// const paymentPaths = require('./payments.paths');
+const authClientPaths = require('./authClient.paths');
+const verificationClientPaths = require('./verificationClient.paths');
 
 const getAllPaths = () => {
   return {
-    ...authPaths,
-    ...productPaths,
-    // ...orderPaths,
-    // ...paymentPaths
+    ...authClientPaths,
+    ...verificationClientPaths
+    // Aquí puedes agregar más paths de otros módulos:
+    // ...authSharedPaths,
+    // ...adminPaths,
+    // etc.
   };
 };
 

@@ -1,0 +1,134 @@
+'use strict';
+
+const KycProfileService = require('../services/kycProfile.service');
+const ApiResponse = require('../utils/response.util');
+
+class KycProfileController {
+  /**
+   * Get basic user profile
+   * GET /kyc-profile/profile
+   */
+  async getProfile(req, res, next) {
+    try {
+      const result = await KycProfileService.getProfile(req.user);
+      return ApiResponse.success(res, 'Perfil básico obtenido exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get extended user profile
+   * GET /kyc-profile/profile/extended
+   */
+  async getExtendedProfile(req, res, next) {
+    try {
+      const result = await KycProfileService.getExtendedProfile(req.user);
+      return ApiResponse.success(res, 'Perfil extendido obtenido exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get user location
+   * GET /kyc-profile/location
+   */
+  async getLocation(req, res, next) {
+    try {
+      const result = await KycProfileService.getLocation(req.user);
+      return ApiResponse.success(res, 'Ubicación obtenida exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get user contact information
+   * GET /kyc-profile/contact
+   */
+  async getContactInfo(req, res, next) {
+    try {
+      const result = await KycProfileService.getContactInfo(req.user);
+      return ApiResponse.success(res, 'Información de contacto obtenida exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update user profile
+   * PUT /kyc-profile/profile
+   */
+  async updateProfile(req, res, next) {
+    try {
+      const result = await KycProfileService.updateProfile(req.body, req.user);
+      return ApiResponse.success(res, 'Perfil actualizado exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update user email
+   * PUT /kyc-profile/email
+   */
+  async updateEmail(req, res, next) {
+    try {
+      const result = await KycProfileService.updateEmail(req.body, req.user, res.locals.auditContext);
+      return ApiResponse.success(res, 'Email actualizado exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update user phone
+   * PUT /kyc-profile/phone
+   */
+  async updatePhone(req, res, next) {
+    try {
+      const result = await KycProfileService.updatePhone(req.body, req.user);
+      return ApiResponse.success(res, 'Teléfono actualizado exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update user password
+   * PUT /kyc-profile/password
+   */
+  async updatePassword(req, res, next) {
+    try {
+      const result = await KycProfileService.updatePassword(req.body, req.user, res.locals.auditContext);
+      return ApiResponse.success(res, 'Contraseña actualizada exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update persona national_id
+   * PUT /kyc-profile/nationalId
+   */
+  async updateNationalId(req, res, next) {
+    try {
+      const result = await KycProfileService.updateNationalId(req.body, req.user, res.locals.auditContext);
+      return ApiResponse.success(res, 'nationalId actualizado exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteAccount(req, res, next) {
+    try {
+      const result = await KycProfileService.deleteAccount(req.body, req.user, res.locals.auditContext);
+      return ApiResponse.success(res, 'Cuenta eliminada exitosamente', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+module.exports = new KycProfileController();

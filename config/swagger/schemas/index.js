@@ -1,20 +1,36 @@
+// config/swagger/schemas/index.js
 /**
  * Centralizar todos los schemas
+ * Exporta los schemas de forma plana para que puedan ser referenciados con $ref
  */
 
-const commonSchemas = require('./common');
-const authSchemas = require('./auth');
-const productSchemas = require('./products');
-// const orderSchemas = require('./orders');
-// const paymentSchemas = require('./payments');
+const authClientSchemas = require('./authClient.schemas');
+const verificationClientSchemas = require('./verificationClient.schemas');
+
+const kycPersonAdminSchemas = require('./kycPersonAdmin.schemas');
+const notificationTypeAdminSchemas = require('./notificationTypeAdmin.schemas');
+
+const authSharedSchemas = require('./authShared.schemas');
+const coreMaintainersSharedSchemas = require('./coreMaintainersShared.schemas');
+
+const commonSchemas = require('./common.schemas');
 
 const getAllSchemas = () => {
   return {
+    // Common Schemas
     ...commonSchemas,
-    ...authSchemas,
-    ...productSchemas,
-    // ...orderSchemas,
-    // ...paymentSchemas
+    
+    // Client Schemas
+    ...authClientSchemas,
+    ...verificationClientSchemas,
+
+    // Shared Schemas
+    ...authSharedSchemas,
+    ...coreMaintainersSharedSchemas,
+
+    // Admin Schemas
+    ...kycPersonAdminSchemas,
+    ...notificationTypeAdminSchemas
   };
 };
 

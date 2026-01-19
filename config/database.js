@@ -13,11 +13,9 @@ const baseConfig = {
     dialectOptions: {
       prependSearchPath: true
     },
-    schema: process.env.DB_SCHEMA || 'public',
     define: {
-      schema: process.env.DB_SCHEMA || 'public',
       timestamps: true,
-      underscored: false,
+      underscored: true,
       freezeTableName: true
     },
     logging: process.env.DB_LOGGING === 'true' ? console.log : false,
@@ -36,7 +34,7 @@ const baseConfig = {
     logging: false,
     define: {
       timestamps: true,
-      underscored: false,
+      underscored: true,
       freezeTableName: true
     },
     pool: {
@@ -61,11 +59,9 @@ const baseConfig = {
         rejectUnauthorized: false
       }
     },
-    schema: process.env.DB_SCHEMA || 'public',
     define: {
-      schema: process.env.DB_SCHEMA || 'public',
       timestamps: true,
-      underscored: false,
+      underscored: true,
       freezeTableName: true
     },
     logging: false,
