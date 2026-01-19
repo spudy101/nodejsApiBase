@@ -4,7 +4,7 @@ const personSocialNetworkRepository = require('../repositories/personSocialNetwo
 const AppError = require('../utils/appError.util');
 const { logger } = require('../utils/logger.util');
 const { sequelize } = require('../models');
-const { SocialNetworkListDTO, AddSocialNetworkResponseDTO, DeleteSocialNetworkResponseDTO, UpdateSocialNetworkResponseDTO } = require('../dtos/personSocialNetwork.dto');
+const { SocialNetworkListDTO, AddSocialNetworkResponseDTO, UpdateSocialNetworkResponseDTO } = require('../dtos/kycSocialNetwork.dto');
 
 class KycSocialNetwork {
 
@@ -23,7 +23,6 @@ class KycSocialNetwork {
 
   /**
    * Agrega una red social al perfil del usuario
-   * ✅ CORREGIDO: Ahora usa transacción
    */
   async addSocialNetwork(data, metadata) {
     const { userId, personId } = metadata;
@@ -32,7 +31,6 @@ class KycSocialNetwork {
     const transaction = await sequelize.transaction();
 
     try {
-      // Verificar si ya existe esta red social para el usuario
       const existing = await personSocialNetworkRepository.findByPersonAndProvider(
         personId,
         social_network_provider_id,
@@ -43,7 +41,6 @@ class KycSocialNetwork {
         throw AppError.conflict('Ya tienes esta red social agregada');
       }
 
-      // Crear red social
       const socialNetwork = await personSocialNetworkRepository.create({
         person_id: personId,
         social_network_provider_id,
@@ -54,7 +51,6 @@ class KycSocialNetwork {
 
       await transaction.commit();
 
-      // Obtener con el include del provider para el DTO (fuera de transacción, solo lectura)
       const socialNetworkWithProvider = await personSocialNetworkRepository.findById(
         socialNetwork.person_social_network_id,
         { include: [{ association: 'provider' }] }
@@ -73,7 +69,6 @@ class KycSocialNetwork {
 
   /**
    * Actualiza una red social existente
-   * ✅ CORREGIDO: Ahora usa transacción
    */
   async updateSocialNetwork(data, metadata) {
     const { userId, personId } = metadata;
@@ -118,7 +113,6 @@ class KycSocialNetwork {
 
   /**
    * Elimina una red social del perfil
-   * ✅ Ya estaba bien, pero agregamos transacción para consistencia
    */
   async deleteSocialNetwork(data, metadata) {
     const { userId, personId } = metadata;
@@ -146,7 +140,7 @@ class KycSocialNetwork {
 
       logger.info('Social network deleted', { userId, socialNetworkId: person_social_network_id });
 
-      return new DeleteSocialNetworkResponseDTO(person_social_network_id);
+      return null;
 
     } catch (error) {
       await transaction.rollback();

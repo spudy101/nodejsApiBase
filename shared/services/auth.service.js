@@ -8,13 +8,9 @@ const SessionCacheUtil = require('../utils/sessionCache.util');
 const CognitoUtil = require('../utils/cognito.util');
 const AppError = require('../utils/appError.util');
 const { logger } = require('../utils/logger.util');
+const { loginAttempts } = require('../constants');
 
 class AuthService {
-  static CONFIG = {
-    MAX_LOGIN_ATTEMPTS: 5,
-    BLOCK_DURATION_MINUTES: 15,
-  };
-
   async login(data, auditContext) {
     const { nationalId, password } = data;
     const { ip, userAgent, device_fingerprint } = auditContext;
@@ -166,7 +162,11 @@ class AuthService {
   async _handleFailedLogin(user, nationalId, cognitoUsername, auditContext, reason) {
     const failedAttempts = await userLoginAttemptRepository.countFailedAttempts(nationalId);
     const newAttemptCount = failedAttempts + 1;
-    const { MAX_LOGIN_ATTEMPTS, BLOCK_DURATION_MINUTES } = AuthService.CONFIG;
+    const MAX_LOGIN_ATTEMPTS = loginAttempts.maxAttempts;
+    const BLOCK_DURATION_MINUTES = loginAttempts.blockDurationMinutes;
+
+    console.log(MAX_LOGIN_ATTEMPTS);
+    console.log(BLOCK_DURATION_MINUTES);
 
     let blockedUntil = null;
     if (newAttemptCount >= MAX_LOGIN_ATTEMPTS) {

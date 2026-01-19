@@ -6,7 +6,7 @@ class KycNotificationPreferenceValidator {
 
   /**
    * Validation for updating global preference
-   * PUT /kyc-notification-preference/global
+   * PUT /<admin>o<client>/api/kyc/notification-preference/global
    */
   static updateGlobalPreference() {
     return [
@@ -28,7 +28,6 @@ class KycNotificationPreferenceValidator {
         .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
         .withMessage('quiet_hours_end debe tener formato HH:MM (00:00 - 23:59)'),
       
-      // Validación personalizada: al menos un campo debe estar presente
       body().custom((value, { req }) => {
         const allowedFields = ['allow_push', 'allow_email', 'quiet_hours_start', 'quiet_hours_end'];
         const hasAtLeastOne = allowedFields.some(field => req.body[field] !== undefined);
@@ -44,7 +43,7 @@ class KycNotificationPreferenceValidator {
 
   /**
    * Validation for updating type preference
-   * PUT /kyc-notification-preference/type
+   * PUT /<admin>o<client>/api/kyc/notification-preference/type
    */
   static updateTypePreference() {
     return [
@@ -65,7 +64,7 @@ class KycNotificationPreferenceValidator {
 
   /**
    * Validation for deleting type preference
-   * DELETE /kyc-notification-preference/type
+   * DELETE /<admin>o<client>/api/kyc/notification-preference/type
    */
   static deleteTypePreference() {
     return [
@@ -78,7 +77,7 @@ class KycNotificationPreferenceValidator {
 
   /**
    * Validation for batch updating type preferences
-   * PUT /kyc-notification-preference/batch
+   * PUT /<admin>o<client>/api/kyc/notification-preference/batch
    */
   static batchUpdateTypePreferences() {
     return [

@@ -1,6 +1,7 @@
-// src/utils/redis.js
+// src/utils/redis.util.js
 const Redis = require('ioredis');
 const { logger } = require('./logger.util');
+const { redis: redisConfig } = require('../constants');
 
 class RedisClient {
   constructor() {
@@ -10,23 +11,25 @@ class RedisClient {
   }
 
   async connect() {
-    if (!process.env.REDIS_HOST && !process.env.REDIS_URL) {
+    // ✅ Verificar si Redis está configurado (desde constants)
+    if (!redisConfig.enabled) {
       logger.info('Redis not configured - running without cache');
       this.isEnabled = false;
       return null;
     }
 
     try {
-      const redisConfig = process.env.REDIS_URL ? 
-        process.env.REDIS_URL : 
+      // ✅ Configuración desde constants
+      const config = redisConfig.url ? 
+        redisConfig.url : 
         {
-          host: process.env.REDIS_HOST || '127.0.0.1',
-          port: Number(process.env.REDIS_PORT) || 6379,
-          password: process.env.REDIS_PASSWORD || undefined,
-          db: Number(process.env.REDIS_DB) || 0,
+          host: redisConfig.host,
+          port: redisConfig.port,
+          password: redisConfig.password || undefined,
+          db: redisConfig.db,
         };
 
-      this.client = new Redis(redisConfig, {
+      this.client = new Redis(config, {
         retryStrategy: (times) => {
           if (times > 3) {
             logger.warn('Redis connection failed after 3 retries, disabling Redis');
@@ -42,7 +45,11 @@ class RedisClient {
       });
 
       this.client.on('ready', () => {
-        logger.info('Redis connected');
+        logger.info('Redis connected', {
+          host: redisConfig.host,
+          port: redisConfig.port,
+          db: redisConfig.db
+        });
         this.isConnected = true;
         this.isEnabled = true;
       });

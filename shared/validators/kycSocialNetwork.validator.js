@@ -6,7 +6,7 @@ class KycSocialNetworkValidator {
 
   /**
    * Validation for adding a social network
-   * POST /kyc-social-network/network
+   * POST /<admin>o<client>/api/kyc/social-networks
    */
   static addSocialNetwork() {
     return [
@@ -29,7 +29,7 @@ class KycSocialNetworkValidator {
 
   /**
    * Validation for updating a social network
-   * PUT /kyc-social-network/network
+   * PUT /<admin>o<client>/api/kyc/social-networks
    */
   static updateSocialNetwork() {
     return [
@@ -46,11 +46,9 @@ class KycSocialNetworkValidator {
       body('profile_url')
         .optional()
         .custom((value) => {
-          // Permitir null o undefined para borrar la URL
           if (value === null || value === undefined || value === '') {
             return true;
           }
-          // Si tiene valor, debe ser una URL válida
           const urlRegex = /^https?:\/\/.+/;
           if (!urlRegex.test(value)) {
             throw new Error('Debe proporcionar una URL válida');
@@ -65,7 +63,7 @@ class KycSocialNetworkValidator {
 
   /**
    * Validation for deleting a social network
-   * DELETE /kyc-social-network/network
+   * DELETE /<admin>o<client>/api/kyc/social-networks
    */
   static deleteSocialNetwork() {
     return [

@@ -1,7 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
-
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const PhonePrefix = sequelize.define(
@@ -33,7 +33,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'phone_prefixes',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
     }
   );

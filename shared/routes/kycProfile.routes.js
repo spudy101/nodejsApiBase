@@ -9,11 +9,10 @@ const SessionMiddleware = require('../middlewares/session.middleware');
 const RequestLockMiddleware = require('../middlewares/requestLock.middleware');
 const ValidatorUtil = require('../utils/validators.util');
 
-
 /**
- * @route   GET /kyc-profile/profile
+ * @route   GET /<admin>o<client>/api/kyc/profile
  * @desc    Get basic user profile
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.get(
   '/',
@@ -24,9 +23,9 @@ router.get(
 );
 
 /**
- * @route   GET /kyc-profile/profile/extended
+ * @route   GET /<admin>o<client>/api/kyc/profile/extended
  * @desc    Get extended user profile (includes location, social networks, preferences)
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.get(
   '/extended',
@@ -37,9 +36,9 @@ router.get(
 );
 
 /**
- * @route   GET /kyc-profile/location
+ * @route   GET /<admin>o<client>/api/kyc/profile/location
  * @desc    Get user location information
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.get(
   '/location',
@@ -50,9 +49,9 @@ router.get(
 );
 
 /**
- * @route   GET /kyc-profile/contact
+ * @route   GET /<admin>o<client>/api/kyc/profile/contact
  * @desc    Get user contact information
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.get(
   '/contact',
@@ -63,9 +62,9 @@ router.get(
 );
 
 /**
- * @route   PUT /kyc-profile/profile
+ * @route   PUT /<admin>o<client>/api/kyc/profile
  * @desc    Update user profile (username, avatar, location)
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.put(
   '/',
@@ -78,9 +77,9 @@ router.put(
 );
 
 /**
- * @route   PUT /kyc-profile/email
+ * @route   PUT /<admin>o<client>/api/kyc/profile/email
  * @desc    Update user email (requires verification)
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.put(
   '/email',
@@ -93,9 +92,9 @@ router.put(
 );
 
 /**
- * @route   PUT /kyc-profile/phone
+ * @route   PUT /<admin>o<client>/api/kyc/profile/phone
  * @desc    Update user phone (requires verification)
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.put(
   '/phone',
@@ -108,9 +107,9 @@ router.put(
 );
 
 /**
- * @route   PUT /kyc-profile/password
+ * @route   PUT /<admin>o<client>/api/kyc/profile/password
  * @desc    Update user password
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.put(
   '/password',
@@ -123,9 +122,9 @@ router.put(
 );
 
 /**
- * @route   PUT /kyc-profile/nationalId
+ * @route   PUT /<admin>o<client>/api/kyc/profile/nationalId
  * @desc    Update user nationalId
- * @access  Protected
+ * @access  Protected (Admin & Client)
  */
 router.put(
   '/nationalId',
@@ -137,6 +136,11 @@ router.put(
   kycProfileController.updateNationalId
 );
 
+/**
+ * @route   DELETE /<admin>o<client>/api/kyc/profile/delete-account
+ * @desc    Delete user account
+ * @access  Protected (Admin & Client)
+ */
 router.delete(
   '/delete-account',
   AuthMiddleware.authenticate,

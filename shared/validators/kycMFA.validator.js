@@ -5,8 +5,8 @@ const { body } = require('express-validator');
 class KycMFAValidator {
 
   /**
-   * Validation for verifying code
-   * POST /kyc/activate-totp
+   * Validation for activating TOTP
+   * POST /<admin>o<client>/api/kyc/mfa/activate-totp
    */
   static activateTOTP() {
     return [
@@ -18,8 +18,8 @@ class KycMFAValidator {
   }
 
   /**
-   * Validation for verifying code
-   * POST /kyc/verify-totp
+   * Validation for verifying TOTP
+   * POST /<admin>o<client>/api/kyc/mfa/verify-totp
    */  
   static verifyTOTP() {
     return [
@@ -32,11 +32,10 @@ class KycMFAValidator {
 
   /**
    * Validation for password
-   * POST /kyc/validate-password
+   * POST /<admin>o<client>/api/kyc/mfa/validate-password
    */
   static validatePassword() {
     return [
-      
       body('password')
         .notEmpty().withMessage('La contraseña es requerida')
         .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres')
@@ -46,19 +45,18 @@ class KycMFAValidator {
   }
 
   /**
-   * Validation for password
-   * POST /kyc/deactivate-totp
+   * Validation for deactivating TOTP
+   * POST /<admin>o<client>/api/kyc/mfa/deactivate-totp
    */
   static deactivateTOTP() {
     return [
-      
       body('password')
         .notEmpty().withMessage('La contraseña es requerida')
         .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres')
         .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\^$*.[\]{}()?\-"!@#%&/\\,><':;|_~`+=])/)
         .withMessage('La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial')
     ];
-  }  
+  }
 
 }
 

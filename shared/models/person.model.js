@@ -1,7 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
-
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const Person = sequelize.define(
@@ -48,7 +48,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'persons',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
       paranoid: false, // Automatically handles deletedAt
     }

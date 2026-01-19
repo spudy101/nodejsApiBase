@@ -30,22 +30,12 @@ class SocialNetworkListDTO {
 class AddSocialNetworkResponseDTO extends SocialNetworkDTO {
   constructor(socialNetwork) {
     super(socialNetwork);
-    this.message = 'Red social agregada exitosamente';
   }
 }
 
 class UpdateSocialNetworkResponseDTO extends SocialNetworkDTO {
   constructor(socialNetwork) {
     super(socialNetwork);
-    this.message = 'Red social actualizada exitosamente';
-  }
-}
-
-class DeleteSocialNetworkResponseDTO {
-  constructor(personSocialNetworkId) {
-    this.person_social_network_id = personSocialNetworkId;
-    this.deleted = true;
-    this.message = 'Red social eliminada exitosamente';
   }
 }
 
@@ -53,6 +43,5 @@ module.exports = {
   SocialNetworkDTO, 
   SocialNetworkListDTO,
   AddSocialNetworkResponseDTO,
-  UpdateSocialNetworkResponseDTO,
-  DeleteSocialNetworkResponseDTO
+  UpdateSocialNetworkResponseDTO
 };

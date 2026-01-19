@@ -6,7 +6,7 @@ const ApiResponse = require('../utils/response.util');
 class KycProfileController {
   /**
    * Get basic user profile
-   * GET /kyc-profile/profile
+   * GET /<admin>o<client>/api/kyc/profile
    */
   async getProfile(req, res, next) {
     try {
@@ -19,7 +19,7 @@ class KycProfileController {
 
   /**
    * Get extended user profile
-   * GET /kyc-profile/profile/extended
+   * GET /<admin>o<client>/api/kyc/profile/extended
    */
   async getExtendedProfile(req, res, next) {
     try {
@@ -32,7 +32,7 @@ class KycProfileController {
 
   /**
    * Get user location
-   * GET /kyc-profile/location
+   * GET /<admin>o<client>/api/kyc/profile/location
    */
   async getLocation(req, res, next) {
     try {
@@ -45,7 +45,7 @@ class KycProfileController {
 
   /**
    * Get user contact information
-   * GET /kyc-profile/contact
+   * GET /<admin>o<client>/api/kyc/profile/contact
    */
   async getContactInfo(req, res, next) {
     try {
@@ -58,7 +58,7 @@ class KycProfileController {
 
   /**
    * Update user profile
-   * PUT /kyc-profile/profile
+   * PUT /<admin>o<client>/api/kyc/profile
    */
   async updateProfile(req, res, next) {
     try {
@@ -71,7 +71,7 @@ class KycProfileController {
 
   /**
    * Update user email
-   * PUT /kyc-profile/email
+   * PUT /<admin>o<client>/api/kyc/profile/email
    */
   async updateEmail(req, res, next) {
     try {
@@ -84,7 +84,7 @@ class KycProfileController {
 
   /**
    * Update user phone
-   * PUT /kyc-profile/phone
+   * PUT /<admin>o<client>/api/kyc/profile/phone
    */
   async updatePhone(req, res, next) {
     try {
@@ -97,7 +97,7 @@ class KycProfileController {
 
   /**
    * Update user password
-   * PUT /kyc-profile/password
+   * PUT /<admin>o<client>/api/kyc/profile/password
    */
   async updatePassword(req, res, next) {
     try {
@@ -109,22 +109,26 @@ class KycProfileController {
   }
 
   /**
-   * Update persona national_id
-   * PUT /kyc-profile/nationalId
+   * Update user national_id
+   * PUT /<admin>o<client>/api/kyc/profile/nationalId
    */
   async updateNationalId(req, res, next) {
     try {
       const result = await KycProfileService.updateNationalId(req.body, req.user, res.locals.auditContext);
-      return ApiResponse.success(res, 'nationalId actualizado exitosamente', result);
+      return ApiResponse.success(res, 'Identificación nacional actualizada exitosamente', result);
     } catch (error) {
       next(error);
     }
   }
 
+  /**
+   * Delete user account
+   * DELETE /<admin>o<client>/api/kyc/profile/delete-account
+   */
   async deleteAccount(req, res, next) {
     try {
-      const result = await KycProfileService.deleteAccount(req.body, req.user, res.locals.auditContext);
-      return ApiResponse.success(res, 'Cuenta eliminada exitosamente', result);
+      await KycProfileService.deleteAccount(req.body, req.user, res.locals.auditContext);
+      return ApiResponse.success(res, 'Cuenta eliminada exitosamente');
     } catch (error) {
       next(error);
     }

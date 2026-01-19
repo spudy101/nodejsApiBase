@@ -1,6 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const UserChangeLog = sequelize.define(
@@ -81,7 +82,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'user_change_logs',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: false, // Solo created_at manual
       underscored: true,
       indexes: [

@@ -149,8 +149,7 @@ class KycPersonService {
         person_id: person.person_id,
         role_id: userData.roleId,
         password: temporaryPassword,
-        cognito_sub: cognitoData.sub,
-        avatar_id: process.env.DEFAULT_AVATAR_ID || '99653c0a-a9cc-4603-99ad-8c8cc6b3ddf1',
+        cognito_sub: cognitoData.sub
       }, { transaction });
 
       await transaction.commit();

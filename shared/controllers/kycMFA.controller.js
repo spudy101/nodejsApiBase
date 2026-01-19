@@ -1,22 +1,17 @@
 'use strict';
 
-// ========== EJEMPLO DE USO EN CONTROLLER ==========
-// Este archivo es solo de referencia para que adaptes tu controller
-
 const kycMFAService = require('../services/kycMFA.service');
 const ApiResponse = require('../utils/response.util');
 
 class KycMFAController {
   /**
-   * POST /api/kyc/mfa/setup
+   * POST /<admin>o<client>/api/kyc/mfa/setup-totp
    * Headers: { Authorization: 'Bearer <accessToken>' }
    */
   async setupTOTP(req, res, next) {
     try {
-      // Extraer accessToken del header
       const accessToken = req.headers.authorization?.replace('Bearer ', '');
 
-      // Llamar service pasando body completo
       const result = await kycMFAService.setupTOTP(
         { accessToken },
         req.user
@@ -29,7 +24,7 @@ class KycMFAController {
   }
 
   /**
-   * POST /api/kyc/mfa/activate
+   * POST /<admin>o<client>/api/kyc/mfa/activate-totp
    * Headers: { Authorization: 'Bearer <accessToken>' }
    * Body: { totpCode: '123456' }
    */
@@ -50,7 +45,7 @@ class KycMFAController {
   }
 
   /**
-   * POST /api/kyc/mfa/verify
+   * POST /<admin>o<client>/api/kyc/mfa/verify-totp
    * Headers: { Authorization: 'Bearer <accessToken>' }
    * Body: { totpCode: '123456' }
    */
@@ -70,13 +65,12 @@ class KycMFAController {
   }
 
   /**
-   * DELETE /api/kyc/mfa/deactivate
+   * POST /<admin>o<client>/api/kyc/mfa/deactivate-totp
    * Headers: { Authorization: 'Bearer <accessToken>' }
    * Body: { password: 'userPassword123' }
    */
   async deactivateTOTP(req, res, next) {
     try {
-
       const result = await kycMFAService.deactivateTOTP(
         req.body,
         req.user,
@@ -90,13 +84,12 @@ class KycMFAController {
   }
 
   /**
-   * POST /api/kyc/mfa/validate-password
+   * POST /<admin>o<client>/api/kyc/mfa/validate-password
    * Headers: { Authorization: 'Bearer <accessToken>' }
    * Body: { password: 'userPassword123' }
    */
   async validatePassword(req, res, next) {
     try {
-
       const result = await kycMFAService.validatePassword(
         req.body,
         req.user

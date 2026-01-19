@@ -60,7 +60,7 @@ class UserRepository extends BaseRepository {
     );
   }
 
-  async findByUsernameAndNationalId(nationalId, includeLevel = 'minimal') {
+  async findByUsernameAndNationalId(nationalId, includeLevel = 'basic') {
     return await this.findOne(
       { 
         '$person.national_id$': nationalId 
@@ -124,7 +124,7 @@ class UserRepository extends BaseRepository {
       password_hash: passwordHash,
       person_id: userData.person_id,
       role_id: userData.role_id,
-      avatar_id: userData.avatar_id,
+      avatar_id: userData.avatar_id || null,
       cognito_sub: userData.cognito_sub || null,
       cognito_username: userData.cognito_username || null,
       is_active: true,

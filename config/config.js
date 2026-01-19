@@ -1,8 +1,9 @@
 // config.js
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
+const { server } = require('../shared/constants');
 
-const env = process.env.NODE_ENV || 'development';
+const env = server.nodeEnv;
 const config = require('./database')[env];
 
 const sequelize = new Sequelize(

@@ -9,9 +9,8 @@ const SessionMiddleware = require('../middlewares/session.middleware');
 const RequestLockMiddleware = require('../middlewares/requestLock.middleware');
 const ValidatorUtil = require('../utils/validators.util');
 
-
 /**
- * @route   GET /kyc-notification-preference/preferences
+ * @route   GET /<admin>o<client>/api/kyc/notification-preferences
  * @desc    Get all user notification preferences
  * @access  Protected
  */
@@ -24,7 +23,7 @@ router.get(
 );
 
 /**
- * @route   PUT /kyc-notification-preference/global
+ * @route   PUT /<admin>o<client>/api/kyc/notification-preferences/global
  * @desc    Update global notification preference
  * @access  Protected
  */
@@ -39,7 +38,7 @@ router.put(
 );
 
 /**
- * @route   PUT /kyc-notification-preference/type
+ * @route   PUT /<admin>o<client>/api/kyc/notification-preferences/type
  * @desc    Create or update a specific notification type preference
  * @access  Protected
  */
@@ -54,7 +53,7 @@ router.put(
 );
 
 /**
- * @route   DELETE /kyc-notification-preference/type
+ * @route   DELETE /<admin>o<client>/api/kyc/notification-preferences/type
  * @desc    Delete a specific notification type preference (reverts to global)
  * @access  Protected
  */
@@ -69,7 +68,7 @@ router.delete(
 );
 
 /**
- * @route   PUT /kyc-notification-preference/batch
+ * @route   PUT /<admin>o<client>/api/kyc/notification-preferences/batch
  * @desc    Batch update multiple notification type preferences
  * @access  Protected
  */

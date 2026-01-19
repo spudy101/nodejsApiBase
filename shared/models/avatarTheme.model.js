@@ -1,6 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
+const { database } = require('../constants');
 
 
 module.exports = (sequelize) => {
@@ -28,7 +29,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'avatar_themes',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
     }
   );

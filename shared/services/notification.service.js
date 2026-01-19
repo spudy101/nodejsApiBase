@@ -12,25 +12,19 @@ const { Op } = require('sequelize');
 
 class NotificationService {
 
-  // ==================== MÉTODOS PÚBLICOS - CONSULTA ====================
-
   /**
    * Obtiene notificaciones mezcladas (personal + global) con paginación
    * @param {string} userId 
-   * @param {Object} query - req.query (page, limit, sortBy, order, search)
+   * @param {Object} query
    * @returns {Promise<{ data: Array, metadata: Object }>}
    */
   async getNotificationsList(userId, query) {
     const paginationParams = PaginationHelper.getPaginationParams(query);
     const { page, limit, offset, sortBy, order } = paginationParams;
 
-    // 1. Obtener notificaciones personales
     const personalNotifications = await this._getPersonalNotificationsRaw(userId);
-
-    // 2. Obtener notificaciones globales no leídas
     const globalNotifications = await this._getGlobalNotificationsRaw(userId);
 
-    // 3. Mezclar y ordenar
     const allNotifications = this._mergeAndSortNotifications(
       personalNotifications,
       globalNotifications,
@@ -38,14 +32,11 @@ class NotificationService {
       order
     );
 
-    // 4. Aplicar paginación manual
     const totalItems = allNotifications.length;
     const paginatedData = allNotifications.slice(offset, offset + limit);
 
-    // 5. Marcar como leídas las notificaciones de esta página
     await this._markPageAsRead(userId, paginatedData);
 
-    // 6. Construir metadata
     const metadata = PaginationHelper.buildMetadata(
       totalItems,
       page,
@@ -63,21 +54,19 @@ class NotificationService {
   /**
    * Obtiene solo notificaciones personales con paginación
    * @param {string} userId 
-   * @param {Object} query - req.query
+   * @param {Object} query
    * @returns {Promise<{ data: Array, metadata: Object }>}
    */
   async getPersonalNotifications(userId, query) {
     const paginationParams = PaginationHelper.getPaginationParams(query);
     const { page, limit } = paginationParams;
 
-    // Obtener con paginación del repositorio
     const result = await notificationRepo.findByUserPaginated(
       userId,
       paginationParams,
       { searchTerm: query.search, searchFields: ['title', 'body'] }
     );
 
-    // Marcar como leídas las de esta página
     const notificationIds = result.rows
       .filter(n => !n.is_read)
       .map(n => n.notification_id);
@@ -86,7 +75,6 @@ class NotificationService {
       await this._markPersonalAsRead(notificationIds);
     }
 
-    // Mapear a formato de respuesta
     const data = result.rows.map(n => this._mapPersonalNotification(n));
 
     const metadata = PaginationHelper.buildMetadata(
@@ -103,21 +91,18 @@ class NotificationService {
   /**
    * Obtiene solo notificaciones globales con paginación
    * @param {string} userId 
-   * @param {Object} query - req.query
+   * @param {Object} query
    * @returns {Promise<{ data: Array, metadata: Object }>}
    */
   async getGlobalNotifications(userId, query) {
     const paginationParams = PaginationHelper.getPaginationParams(query);
     const { page, limit, offset } = paginationParams;
 
-    // Obtener todas las globales activas
     const allGlobals = await this._getGlobalNotificationsRaw(userId);
 
-    // Aplicar paginación manual
     const totalItems = allGlobals.length;
     const paginatedData = allGlobals.slice(offset, offset + limit);
 
-    // Marcar como leídas las de esta página (insertar en GlobalNotificationRead)
     const globalIds = paginatedData
       .filter(n => !n.is_read)
       .map(n => n.notification_id);
@@ -146,10 +131,7 @@ class NotificationService {
    * @returns {Promise<number>}
    */
   async getUnreadCount(userId) {
-    // 1. Contar personales no leídas
     const personalCount = await notificationRepo.countUnreadByUser(userId);
-
-    // 2. Contar globales no leídas
     const globalUnread = await globalNotificationRepo.findUnreadByUser(userId);
     const globalCount = globalUnread.length;
 
@@ -158,25 +140,19 @@ class NotificationService {
 
   /**
    * Crea una notificación (wrapper de NotificationUtil + SSE)
-   * @param {Object} data - Datos de la notificación
-   * @param {Object} metadata - Metadata de auditoría
+   * @param {Object} data
+   * @param {Object} metadata
    * @returns {Promise<Object>}
    */
   async createNotification(data, metadata) {
-    // 1. Crear usando la utilidad existente
     const result = await NotificationUtil.crearNotificacion(data, metadata.transaction);
 
-    // 2. Emitir evento SSE si es notificación individual
     if (data.user_id) {
       await this._emitCountUpdate(data.user_id);
     }
 
-    // 3. Si es global, no emitimos ahora (se emitirá cuando los usuarios se conecten)
-
     return result;
   }
-
-  // ==================== MÉTODOS PRIVADOS - OBTENCIÓN DE DATOS ====================
 
   /**
    * Obtiene notificaciones personales sin paginar (raw)
@@ -202,10 +178,8 @@ class NotificationService {
   async _getGlobalNotificationsRaw(userId) {
     const now = new Date();
 
-    // Obtener IDs de globales ya leídas por el usuario
     const readIds = await globalNotificationReadRepo.getReadIdsByUser(userId);
 
-    // Obtener globales activas
     const globalNotifications = await globalNotificationRepo.findAll(
       {
         is_active: true,
@@ -223,7 +197,6 @@ class NotificationService {
       }
     );
 
-    // Mapear y marcar cuáles están leídas
     return globalNotifications.map(n => ({
       notification_id: n.global_notification_id,
       type: 'global',
@@ -240,8 +213,6 @@ class NotificationService {
       } : null
     }));
   }
-
-  // ==================== MÉTODOS PRIVADOS - TRANSFORMACIÓN ====================
 
   /**
    * Mapea una notificación personal a formato de respuesta
@@ -274,7 +245,6 @@ class NotificationService {
   _mergeAndSortNotifications(personal, global, sortBy = 'created_at', order = 'DESC') {
     const merged = [...personal, ...global];
 
-    // Ordenar por el campo especificado
     merged.sort((a, b) => {
       const aValue = a[sortBy] || a.created_at;
       const bValue = b[sortBy] || b.created_at;
@@ -289,11 +259,8 @@ class NotificationService {
     return merged;
   }
 
-  // ==================== MÉTODOS PRIVADOS - ACTUALIZACIÓN ====================
-
   /**
    * Marca como leídas las notificaciones de una página (personal y global)
-   * ✅ CORREGIDO: Ahora usa transacción
    * @private
    */
   async _markPageAsRead(userId, notifications) {
@@ -305,18 +272,15 @@ class NotificationService {
       .filter(n => n.type === 'global' && !n.is_read)
       .map(n => n.notification_id);
 
-    // Si no hay nada que marcar, salir
     if (personalIds.length === 0 && globalIds.length === 0) return;
 
     const transaction = await sequelize.transaction();
 
     try {
-      // Marcar personales
       if (personalIds.length > 0) {
         await this._markPersonalAsRead(personalIds, { transaction });
       }
 
-      // Marcar globales
       if (globalIds.length > 0) {
         await globalNotificationReadRepo.bulkMarkAsRead(globalIds, userId, { transaction });
       }
@@ -325,13 +289,11 @@ class NotificationService {
     } catch (error) {
       await transaction.rollback();
       logger.error('Error marking page as read', { userId, error: error.message });
-      // No re-lanzar el error - es una operación secundaria
     }
   }
 
   /**
    * Marca notificaciones personales como leídas
-   * ✅ CORREGIDO: Ahora acepta opciones de transacción
    * @private
    */
   async _markPersonalAsRead(notificationIds, options = {}) {
@@ -343,8 +305,6 @@ class NotificationService {
       options
     );
   }
-
-  // ==================== MÉTODOS PRIVADOS - EVENTOS ====================
 
   /**
    * Emite evento SSE de actualización de contador

@@ -3,11 +3,7 @@ const rateLimit = require('express-rate-limit');
 const redisClient = require('../utils/redis.util');
 const ApiResponse = require('../utils/response.util');
 const { logger } = require('../utils/logger.util');
-
-const RATE_LIMIT_WINDOW_MS = process.env.RATE_LIMIT_WINDOW_MS || 900000;
-const RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || 100;
-const RATE_LIMIT_AUTH_WINDOW_MS = process.env.RATE_LIMIT_AUTH_WINDOW_MS || 900000;
-const RATE_LIMIT_AUTH_MAX_REQUESTS = process.env.RATE_LIMIT_AUTH_MAX_REQUESTS || 10;
+const { rateLimit: rateLimitConfig } = require('../constants');
 
 /**
  * Store híbrido simplificado: Redis con fallback a memoria
@@ -123,16 +119,17 @@ class HybridStore {
  * Rate limiter para endpoints públicos y autenticación
  */
 class RateLimitMiddleware {
+  /**
+   * Rate limiter para endpoints públicos
+   * ✅ Config desde constants
+   */
   static publicLimiter() {
     return rateLimit({
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      max: RATE_LIMIT_MAX_REQUESTS,
+      windowMs: rateLimitConfig.windowMs,
+      max: rateLimitConfig.maxRequests,
       standardHeaders: true,
       legacyHeaders: false,
-      store: new HybridStore('rl:public:', RATE_LIMIT_WINDOW_MS),
-      
-      // ✅ Usar el keyGenerator por defecto que maneja IPv6 correctamente
-      // O simplemente omitir esta opción para usar el default
+      store: new HybridStore('rl:public:', rateLimitConfig.windowMs),
       
       handler: (req, res) => {
         logger.warn('Rate limit exceeded (public)', {
@@ -148,22 +145,24 @@ class RateLimitMiddleware {
     });
   }
 
+  /**
+   * Rate limiter para endpoints de autenticación (login, register, etc)
+   * ✅ Config desde constants
+   */
   static authLimiter() {
     return rateLimit({
-      windowMs: RATE_LIMIT_AUTH_WINDOW_MS,
-      max: RATE_LIMIT_AUTH_MAX_REQUESTS,
+      windowMs: rateLimitConfig.authWindowMs,
+      max: rateLimitConfig.authMaxRequests,
       standardHeaders: true,
       legacyHeaders: false,
       skipSuccessfulRequests: false,
-      store: new HybridStore('rl:auth:', RATE_LIMIT_AUTH_WINDOW_MS),
+      store: new HybridStore('rl:auth:', rateLimitConfig.authWindowMs),
       
-      // ✅ Para auth, combinar email + IP usando el helper oficial
       keyGenerator: (req, opt) => {
         const email = req.body?.email || req.body?.username;
         if (email) {
           return `email:${email.toLowerCase()}`;
         }
-        // Usar el helper oficial de express-rate-limit para IPv6
         return opt.ipKeyGenerator(req);
       },
       

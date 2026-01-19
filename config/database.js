@@ -1,15 +1,17 @@
 require('dotenv').config();
 
-const env = process.env.NODE_ENV || 'development';
+const { database, server } = require('../shared/constants');
+
+const env = server.nodeEnv;
 
 const baseConfig = {
   development: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: process.env.DB_DIALECT,
+    username: database.user,
+    password: database.password,
+    database: database.name,
+    host: database.host,
+    port: database.port,
+    dialect: database.dialect,
     dialectOptions: {
       prependSearchPath: true
     },
@@ -18,7 +20,7 @@ const baseConfig = {
       underscored: true,
       freezeTableName: true
     },
-    logging: process.env.DB_LOGGING === 'true' ? console.log : false,
+    logging: database.logging === 'true' ? console.log : false,
     pool: {
       max: 5,
       min: 0,
@@ -46,12 +48,12 @@ const baseConfig = {
   },
   
   production: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: process.env.DB_DIALECT,
+    username: database.user,
+    password: database.password,
+    database: database.name,
+    host: database.host,
+    port: database.port,
+    dialect: database.dialect,
     dialectOptions: {
       prependSearchPath: true,
       ssl: {

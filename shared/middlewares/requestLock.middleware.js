@@ -4,6 +4,7 @@ const localCache = require('../utils/cache.util');
 const { logger } = require('../utils/logger.util');
 const ApiResponse = require('../utils/response.util');
 const EncryptionUtil = require('../utils/encryption.util');
+const { ttl } = require('../constants');
 
 /**
  * Request Lock - Previene requests duplicados
@@ -14,9 +15,10 @@ class RequestLockMiddleware {
   /**
    * Lock para usuarios autenticados (con JWT)
    * Usa userId como identificador único
+   * ✅ TTL desde constants
    */
   static forAuthenticatedUsers(options = {}) {
-    const ttl = options.ttl || 2; // 2 segundos por defecto
+    const lockTtl = options.ttl || ttl.requestLock;
     
     return async (req, res, next) => {
       // Verificar que el usuario esté autenticado
@@ -30,7 +32,7 @@ class RequestLockMiddleware {
         const lockKey = this._generateUserLockKey(req);
         
         // Intentar adquirir lock
-        const acquired = await this._acquireLock(lockKey, ttl);
+        const acquired = await this._acquireLock(lockKey, lockTtl);
         
         if (!acquired) {
           logger.warn('🔒 Duplicate request blocked (user)', {
@@ -59,9 +61,10 @@ class RequestLockMiddleware {
   /**
    * Lock para usuarios NO autenticados (sin JWT)
    * Usa IP como identificador
+   * ✅ TTL desde constants
    */
   static forPublicEndpoints(options = {}) {
-    const ttl = options.ttl || 3; // 3 segundos para IPs
+    const lockTtl = options.ttl || ttl.requestLockPublic;
     
     return async (req, res, next) => {
       try {
@@ -69,7 +72,7 @@ class RequestLockMiddleware {
         const lockKey = this._generateIpLockKey(req);
         
         // Intentar adquirir lock
-        const acquired = await this._acquireLock(lockKey, ttl);
+        const acquired = await this._acquireLock(lockKey, lockTtl);
         
         if (!acquired) {
           logger.warn('🔒 Duplicate request blocked (public)', {

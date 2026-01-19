@@ -2,6 +2,7 @@
 const helmet = require('helmet');
 const cors = require('cors');
 const { logger } = require('../utils/logger.util');
+const { server } = require('../constants/index');
 
 class SecurityMiddleware {
   /**
@@ -34,16 +35,14 @@ class SecurityMiddleware {
    * Configure CORS
    */
   static cors() {
-    const whitelist = process.env.CORS_ORIGIN 
-      ? process.env.CORS_ORIGIN.split(',') 
-      : ['http://localhost:3000'];
+    const whitelist = server.corsOrigin;
 
     return cors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile apps, curl, etc.)
         if (!origin) return callback(null, true);
 
-        if (whitelist.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+        if (whitelist.indexOf(origin) !== -1 || server.nodeEnv === 'development') {
           callback(null, true);
         } else {
           logger.warn('CORS blocked request', { origin });

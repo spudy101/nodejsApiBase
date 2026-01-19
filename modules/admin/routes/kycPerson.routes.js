@@ -26,11 +26,11 @@ router.get(
 );
 
 /**
- * @route   POST /admin/api/kyc/person
+ * @route   PUT /admin/api/kyc/person
  * @desc    Crea un nuevo usuario
  * @access  Private (Admin)
  */
-router.post(
+router.put(
   '/',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),
@@ -42,11 +42,11 @@ router.post(
 );
 
 /**
- * @route   POST /admin/api/kyc/person/:userId/activate
+ * @route   PUT /admin/api/kyc/person/:userId/activate
  * @desc    Activa un usuario desactivado
  * @access  Private (Admin)
  */
-router.post(
+router.put(
   '/:userId/activate',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),
@@ -58,11 +58,11 @@ router.post(
 );
 
 /**
- * @route   POST /admin/api/kyc/person/:userId/deactivate
+ * @route   PUT /admin/api/kyc/person/:userId/deactivate
  * @desc    Desactiva un usuario activo
  * @access  Private (Admin)
  */
-router.post(
+router.put(
   '/:userId/deactivate',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),
@@ -74,11 +74,11 @@ router.post(
 );
 
 /**
- * @route   POST /admin/api/kyc/person/:userId/reset-password
+ * @route   PUT /admin/api/kyc/person/:userId/reset-password
  * @desc    Resetea la contraseña de un usuario
  * @access  Private (Admin)
  */
-router.post(
+router.put(
   '/:userId/reset-password',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),
@@ -90,11 +90,11 @@ router.post(
 );
 
 /**
- * @route   POST /admin/api/kyc/person/:userId/disable-mfa
+ * @route   PUT /admin/api/kyc/person/:userId/disable-mfa
  * @desc    Desactiva el MFA (TOTP) de un usuario
  * @access  Private (Admin)
  */
-router.post(
+router.put(
   '/:userId/disable-mfa',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),
@@ -106,11 +106,11 @@ router.post(
 );
 
 /**
- * @route   PATCH /admin/api/kyc/person/:userId/email
+ * @route   PUT /admin/api/kyc/person/:userId/email
  * @desc    Cambia el email de un usuario
  * @access  Private (Admin)
  */
-router.patch(
+router.put(
   '/:userId/email',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),
@@ -122,11 +122,11 @@ router.patch(
 );
 
 /**
- * @route   PATCH /admin/api/kyc/person/:userId/national-id
+ * @route   PUT /admin/api/kyc/person/:userId/national-id
  * @desc    Cambia el national_id de un usuario
  * @access  Private (Admin)
  */
-router.patch(
+router.put(
   '/:userId/national-id',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),
@@ -138,11 +138,11 @@ router.patch(
 );
 
 /**
- * @route   PATCH /admin/api/kyc/person/:userId/role
+ * @route   PUT /admin/api/kyc/person/:userId/role
  * @desc    Cambia el rol de un usuario
  * @access  Private (Admin)
  */
-router.patch(
+router.put(
   '/:userId/role',
   AuthMiddleware.authenticate,
   AuthMiddleware.requireRole(['admin']),

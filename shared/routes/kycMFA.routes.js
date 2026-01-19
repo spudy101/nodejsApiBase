@@ -10,8 +10,8 @@ const RequestLockMiddleware = require('../middlewares/requestLock.middleware');
 const ValidatorUtil = require('../utils/validators.util');
 
 /**
- * @route   POST /kyc/setup-totp
- * @desc    Get current user profile
+ * @route   POST /<admin>o<client>/api/kyc/mfa/setup-totp
+ * @desc    Setup TOTP for user
  * @access  Protected
  */
 router.post(
@@ -23,8 +23,8 @@ router.post(
 );
 
 /**
- * @route   POST /kyc/activate-totp
- * @desc    Get current user profile
+ * @route   POST /<admin>o<client>/api/kyc/mfa/activate-totp
+ * @desc    Activate TOTP for user
  * @access  Protected
  */
 router.post(
@@ -38,8 +38,8 @@ router.post(
 );
 
 /**
- * @route   POST /kyc/verify-totp
- * @desc    Get current user profile
+ * @route   POST /<admin>o<client>/api/kyc/mfa/verify-totp
+ * @desc    Verify TOTP code
  * @access  Protected
  */
 router.post(
@@ -52,10 +52,9 @@ router.post(
   KycMFAController.verifyTOTP
 );
 
-
 /**
- * @route   POST /kyc/validate-password
- * @desc    Get current user profile
+ * @route   POST /<admin>o<client>/api/kyc/mfa/validate-password
+ * @desc    Validate user password
  * @access  Protected
  */
 router.post(
@@ -69,8 +68,8 @@ router.post(
 );
 
 /**
- * @route   POST /kyc/deactivate-totp
- * @desc    Get current user profile
+ * @route   POST /<admin>o<client>/api/kyc/mfa/deactivate-totp
+ * @desc    Deactivate TOTP for user
  * @access  Protected
  */
 router.post(

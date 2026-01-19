@@ -1,6 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const ResetCredentials = sequelize.define(
@@ -68,7 +69,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'reset_credentials',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
       paranoid: false
     }

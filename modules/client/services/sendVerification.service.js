@@ -7,6 +7,7 @@ const { logger } = require('../../../shared/utils/logger.util');
 const SESUtil = require('../../../shared/utils/SES.util');
 const { sequelize } = require('../../../shared/models');
 const crypto = require('crypto');
+const { server } = require('../../../shared/constants');
 
 class VerificationService {
   /**
@@ -151,7 +152,7 @@ class VerificationService {
   }
 
   _generateCode() {
-    if (process.env.NODE_ENV === 'development') {
+    if (server.nodeEnv === 'development') {
       return '123456';
     }
     return crypto.randomInt(100000, 999999).toString();

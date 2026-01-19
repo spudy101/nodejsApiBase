@@ -1,3 +1,5 @@
+'use strict';
+
 class BasicProfileDTO {
   constructor(user) {
     this.userId = user.user_id;
@@ -137,34 +139,31 @@ class LocationDTO {
   constructor(location) {
     if (!location) return null;
     
-      this.location = {
-        address: location.address,
-        postalCode: location.postal_code,
-        type: location.type,
+    this.location = {
+      address: location.address,
+      postalCode: location.postal_code,
+      type: location.type,
+    };
+    
+    if (location.country) {
+      this.location.country = {
+        name: location.country.name,
+        code: location.country.code,
+        url: location.country.icon_url
       };
-      
-      // country
-      if (location.country) {
-        this.location.country = {
-          name: location.country.name,
-          code: location.country.code,
-          url: location.country.icon_url
-        };
-      }
+    }
 
-      // department
-      if (location.department) {
-        this.location.department = {
-          name: location.department.name
-        };
-      }
+    if (location.department) {
+      this.location.department = {
+        name: location.department.name
+      };
+    }
 
-      // city
-      if (location.city) {
-        this.location.city = {
-          name: location.city.name
-        };
-      }
+    if (location.city) {
+      this.location.city = {
+        name: location.city.name
+      };
+    }
   }
 }
 
@@ -182,7 +181,6 @@ class UpdateAvatarResponseDTO {
       avatar_id: avatar.avatar_id,
       name: avatar.name,
       image_url: avatar.image_url,
-      // TODO: Agregar más columnas de Avatar model
     };
   }
 }
@@ -191,7 +189,7 @@ class UpdatePhoneResponseDTO {
   constructor(phone, phonePrefixId, phoneType, verifiedAt) {
     this.phone = phone;
     this.phone_prefix_id = phonePrefixId;
-    this.phone_type = phoneType; // 'primary' o 'secondary'
+    this.phone_type = phoneType;
     this.verified_at = verifiedAt;
   }
 }
@@ -201,21 +199,18 @@ class ContactInfoResponseDTO {
     this.person_contact_id = contactInfo.person_contact_id;
     this.person_id = contactInfo.person_id;
     
-    // Email
     this.email = {
       address: contactInfo.email,
       verified: !!contactInfo.email_verified_at,
       verified_at: contactInfo.email_verified_at
     };
 
-    // Phone Primary
     this.phone_primary = this._buildPhoneInfo(
       contactInfo.phone_primary,
       contactInfo.phone_primary_verified_at,
       contactInfo.phone_primary_prefix
     );
 
-    // Phone Secondary
     this.phone_secondary = this._buildPhoneInfo(
       contactInfo.phone_secondary,
       contactInfo.phone_secondary_verified_at,
@@ -235,7 +230,6 @@ class ContactInfoResponseDTO {
       verified_at: verifiedAt
     };
 
-    // Solo agregar prefix si existe la data completa
     if (prefixData?.phone_prefix_id) {
       phoneInfo.prefix = {
         id: prefixData.phone_prefix_id,
@@ -247,34 +241,12 @@ class ContactInfoResponseDTO {
   }
 }
 
-/**
- * DTO para respuesta de cambio de national_id
- */
 class ChangeNationalIdResponseDto {
   constructor(user, oldNationalId, newNationalId) {
-    this.data = {
-      user_id: user.user_id,
-      username: user.username,
-      old_national_id: oldNationalId,
-      new_national_id: newNationalId,
-    };
-    this.message = 'Identificación nacional actualizada exitosamente.';
-  }
-}
-
-/**
- * DTO para respuesta de eliminación de cuenta (cliente)
- */
-class DeleteAccountResponseDto {
-  constructor(user, deletedAt) {
-    this.data = {
-      user_id: user.user_id,
-      username: user.username,
-      first_name: user.person?.first_name,
-      last_name: user.person?.last_name,
-      deleted_at: deletedAt
-    };
-    this.message = 'Cuenta eliminada exitosamente. Esperamos verte pronto.';
+    this.user_id = user.user_id;
+    this.username = user.username;
+    this.old_national_id = oldNationalId;
+    this.new_national_id = newNationalId;
   }
 }
 
@@ -286,6 +258,5 @@ module.exports = {
   UpdatePhoneResponseDTO,
   UpdateAvatarResponseDTO,
   ContactInfoResponseDTO,
-  ChangeNationalIdResponseDto,
-  DeleteAccountResponseDto
+  ChangeNationalIdResponseDto
 };

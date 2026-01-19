@@ -1,3 +1,5 @@
+const { server } = require('./shared/constants');
+
 module.exports = {
   env: {
     node: true,
@@ -10,7 +12,7 @@ module.exports = {
     sourceType: 'module'
   },
   rules: {
-    'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+    'no-console': server.nodeEnv === 'production' ? 'warn' : 'off',
     'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     'prefer-const': 'error',
     'no-var': 'error'

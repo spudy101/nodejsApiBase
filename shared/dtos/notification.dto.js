@@ -6,7 +6,7 @@
 class NotificationItemDTO {
   constructor(notification) {
     this.notificationId = notification.notification_id;
-    this.type = notification.type; // 'personal' o 'global'
+    this.type = notification.type;
     this.title = notification.title;
     this.body = notification.body;
     this.metadata = notification.metadata;
@@ -14,7 +14,6 @@ class NotificationItemDTO {
     this.readAt = notification.read_at;
     this.createdAt = notification.created_at;
 
-    // Solo para notificaciones personales
     if (notification.related_entity_type) {
       this.relatedEntity = {
         type: notification.related_entity_type,
@@ -22,7 +21,6 @@ class NotificationItemDTO {
       };
     }
 
-    // Tipo de notificación
     if (notification.notification_type) {
       this.notificationType = {
         id: notification.notification_type.notification_type_id,
@@ -57,7 +55,6 @@ class UnreadCountDTO {
 class NotificationCreatedDTO {
   constructor(result) {
     this.estadoSolicitud = result.estado_solicitud;
-    this.message = result.message;
     
     if (result.notification_id) {
       this.notificationId = result.notification_id;

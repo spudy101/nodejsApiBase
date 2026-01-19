@@ -1,7 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
-
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const Country = sequelize.define(
@@ -40,7 +40,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'countries',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
     }
   );

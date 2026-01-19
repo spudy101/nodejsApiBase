@@ -4,6 +4,7 @@ const CognitoUtil = require('../utils/cognito.util');
 const EncryptionUtil = require('../utils/encryption.util');
 const AppError = require('../utils/appError.util');
 const { logger } = require('../utils/logger.util');
+const { encryption } = require('../constants');
 
 /**
  * Authentication middleware
@@ -234,35 +235,56 @@ class AuthMiddleware {
   }
 
   /**
-   * Optional middleware: Validate user owns resource
-   * Checks if req.user.userId matches req.params.userId
-   * @returns {Function} - Express middleware
+   * Autenticación para servicios externos usando API Key
+   * Valida contra las API keys configuradas en .env
    */
-  static requireOwnership = (req, res, next) => {
+  static externalAuthenticate = (req, res, next) => {
     try {
-      if (!req.user) {
-        throw AppError.unauthorized('Usuario no autenticado');
-      }
-
-      const resourceUserId = req.params.userId;
-
-      if (!resourceUserId) {
-        throw AppError.badRequest('userId no proporcionado en la ruta');
-      }
-
-      if (req.user.userId !== resourceUserId) {
-        logger.warn('User attempted to access resource owned by another user', {
-          userId: req.user.userId,
-          resourceUserId,
-          path: req.path,
+      const apiKey = req.header('X-API-Key');
+      
+      if (!apiKey) {
+        return res.status(401).json({
+          success: false,
+          message: 'API Key requerida'
         });
-
-        throw AppError.forbidden('No puedes acceder a recursos de otros usuarios');
       }
 
+      // ✅ Validar contra las API keys permitidas desde config
+      const validApiKeys = encryption.externalApiKeys
+        ? encryption.externalApiKeys.split(',').map(k => k.trim())
+        : [];
+      
+      if (validApiKeys.length === 0) {
+        logger.error('No external API keys configured in .env');
+        return res.status(500).json({
+          success: false,
+          message: 'Servicio no configurado'
+        });
+      }
+
+      if (!validApiKeys.includes(apiKey)) {
+        logger.warn('Invalid external API key attempt', {
+          ip: req.ip,
+          path: req.path
+        });
+        return res.status(403).json({
+          success: false,
+          message: 'API Key inválida'
+        });
+      }
+
+      // Opcional: Agregar identificador del servicio en req para logging
+      req.externalService = apiKey.substring(0, 24); // Primeros 24 chars para identificar
+      
       next();
     } catch (error) {
-      next(error);
+      logger.error('Error in external authentication', {
+        error: error.message
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Error en autenticación externa'
+      });
     }
   };
 }

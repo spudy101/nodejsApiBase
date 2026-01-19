@@ -1,4 +1,6 @@
 // src/utils/sanitizeAuditBody.js
+const { server } = require('../constants');
+
 const MAX_STRING_LENGTH = 500;
 const MAX_ARRAY_LENGTH = 10;
 const MAX_DEPTH = 3; // Nueva: Evitar objetos muy anidados
@@ -93,7 +95,7 @@ function sanitizeErrorContext(context) {
   return {
     ...sanitizeAuditBody(context),
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
+    environment: server.nodeEnv
   };
 }
 

@@ -7,12 +7,10 @@ class NotificationPreferenceDTO {
     this.quiet_hours_start = preference.quiet_hours_start;
     this.quiet_hours_end = preference.quiet_hours_end;
     
-    // Si tiene relación con notification_type
     if (preference.notification_type) {
       this.notification_type = {
         code: preference.notification_type.code,
-        name: preference.notification_type.name,
-        // TODO: Agregar más columnas de NotificationType model si las necesitas
+        name: preference.notification_type.name
       };
     }
   }

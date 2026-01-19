@@ -1,8 +1,8 @@
 // migrations/20250115000001-create-reset-credentials.js
 'use strict';
-require('dotenv').config();
+const { database } = require('../shared/constants');
 
-const SCHEMA = process.env.DB_SCHEMA;
+const SCHEMA = database.schema;
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {

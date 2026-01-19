@@ -1,22 +1,49 @@
 // src/constants/index.js
 
 /**
- * Parse environment variable as integer with default value
+ * Application constants
+ * 
+ * Este archivo combina:
+ * 1. Configuración desde .env (importada desde config)
+ * 2. Constantes fijas de la aplicación (no configurables)
  */
-const parseIntEnv = (value, defaultValue) => {
-  const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? defaultValue : parsed;
-};
 
-/**
- * Parse environment variable as boolean
- */
-const parseBoolEnv = (value) => {
-  return value === 'true';
-};
+const config = require('../constants/config');
 
 module.exports = {
-  // HTTP Status Codes
+  // ==============================================
+  // IMPORTAR CONFIGURACIONES (desde .env)
+  // ==============================================
+  ...config,
+
+  // ==============================================
+  // TIMEOUTS Y TTLs (segundos) - VALORES FIJOS
+  // ==============================================
+  ttl: {
+    session: 3600,              // 1 hora - Cache de sesiones
+    requestLock: 2,             // 2 segundos - Lock de peticiones IP privada
+    requestLockPublic: 3        // 3 segundos - Lock de peticiones IP pública
+  },
+
+  // ==============================================
+  // SECURITY - Login Attempts (VALORES FIJOS)
+  // ==============================================
+  loginAttempts: {
+    maxAttempts: 5,             // Máximo de intentos fallidos
+    blockDurationMinutes: 15    // Duración del bloqueo
+  },
+
+  // ==============================================
+  // SECURITY - Reset Token (VALORES FIJOS)
+  // ==============================================
+  security: {
+    expirationMinutes: 15,       // Expiración del token de reset,
+    totpIssuer: "DemocraciaLiquida"
+  },
+
+  // ==============================================
+  // HTTP STATUS CODES
+  // ==============================================
   HTTP_STATUS: {
     OK: 200,
     CREATED: 201,
@@ -32,82 +59,17 @@ module.exports = {
     SERVICE_UNAVAILABLE: 503
   },
 
-  // JWT Configuration
-  JWT: {
-    ACCESS_TOKEN_EXPIRY: process.env.JWT_ACCESS_TOKEN_EXPIRY || '15m',
-    REFRESH_TOKEN_EXPIRY: process.env.JWT_REFRESH_TOKEN_EXPIRY || '7d',
-    ISSUER: process.env.JWT_ISSUER || 'api-backend',
-    AUDIENCE: process.env.JWT_AUDIENCE || 'api-client'
-  },
-
-  // Rate Limiting
-  RATE_LIMIT: {
-    WINDOW_MS: parseIntEnv(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000), // 15 minutes
-    MAX_REQUESTS: parseIntEnv(process.env.RATE_LIMIT_MAX_REQUESTS, 100),
-    AUTH_WINDOW_MS: parseIntEnv(process.env.RATE_LIMIT_AUTH_WINDOW_MS, 15 * 60 * 1000),
-    AUTH_MAX_REQUESTS: parseIntEnv(process.env.RATE_LIMIT_AUTH_MAX_REQUESTS, 10),
-    SKIP_SUCCESS: false
-  },
-
-  // Login Attempts
-  LOGIN_ATTEMPTS: {
-    MAX_ATTEMPTS: parseIntEnv(process.env.LOGIN_MAX_ATTEMPTS, 5),
-    BLOCK_DURATION_MS: parseIntEnv(process.env.LOGIN_BLOCK_DURATION_MS, 15 * 60 * 1000), // 15 minutes
-    RESET_AFTER_MS: parseIntEnv(process.env.LOGIN_RESET_AFTER_MS, 60 * 60 * 1000) // 1 hour
-  },
-
-  // Redis Keys (no necesitan ser configurables)
-  REDIS_KEYS: {
-    RATE_LIMIT: 'rate_limit:',
-    REQUEST_LOCK: 'req_lock:',
-    IDEMPOTENCY: 'idempotency:',
-    BLACKLIST_TOKEN: 'blacklist:token:',
-    USER_SESSION: 'session:user:',
-    REFRESH_TOKEN: 'refresh:token:'
-  },
-
-  // Redis TTL (in seconds)
-  REDIS_TTL: {
-    RATE_LIMIT: parseIntEnv(process.env.REDIS_TTL_RATE_LIMIT, 900), // 15 minutes
-    REQUEST_LOCK: parseIntEnv(process.env.REDIS_TTL_REQUEST_LOCK, 30), // 30 seconds
-    IDEMPOTENCY: parseIntEnv(process.env.REDIS_TTL_IDEMPOTENCY, 86400), // 24 hours
-    BLACKLIST_TOKEN: parseIntEnv(process.env.REDIS_TTL_BLACKLIST_TOKEN, 900), // 15 minutes
-    REFRESH_TOKEN: parseIntEnv(process.env.REDIS_TTL_REFRESH_TOKEN, 604800) // 7 days
-  },
-
-  // User Roles
+  // ==============================================
+  // USER ROLES
+  // ==============================================
   USER_ROLES: {
     USER: 'user',
     ADMIN: 'admin'
   },
 
-  // Audit Actions
-  AUDIT_ACTIONS: {
-    USER_REGISTER: 'USER_REGISTER',
-    USER_LOGIN: 'USER_LOGIN',
-    USER_LOGOUT: 'USER_LOGOUT',
-    USER_UPDATE_PROFILE: 'USER_UPDATE_PROFILE',
-    USER_VIEW_PROFILE: 'USER_VIEW_PROFILE',
-    PRODUCT_CREATE: 'PRODUCT_CREATE',
-    PRODUCT_UPDATE: 'PRODUCT_UPDATE',
-    PRODUCT_DELETE: 'PRODUCT_DELETE',
-    PRODUCT_VIEW: 'PRODUCT_VIEW',
-    PRODUCT_LIST: 'PRODUCT_LIST'
-  },
-
-  // Pagination
-  PAGINATION: {
-    DEFAULT_PAGE: parseIntEnv(process.env.PAGINATION_DEFAULT_PAGE, 1),
-    DEFAULT_LIMIT: parseIntEnv(process.env.PAGINATION_DEFAULT_LIMIT, 10),
-    MAX_LIMIT: parseIntEnv(process.env.PAGINATION_MAX_LIMIT, 100)
-  },
-
-  // Request Lock
-  REQUEST_LOCK: {
-    TIMEOUT_MS: parseIntEnv(process.env.REQUEST_LOCK_TIMEOUT_MS, 30000) // 30 seconds
-  },
-
-  // Error Codes (no necesitan ser configurables)
+  // ==============================================
+  // ERROR CODES
+  // ==============================================
   ERROR_CODES: {
     VALIDATION_ERROR: 'VALIDATION_ERROR',
     AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
@@ -118,16 +80,61 @@ module.exports = {
     INTERNAL_ERROR: 'INTERNAL_ERROR',
     DATABASE_ERROR: 'DATABASE_ERROR',
     IDEMPOTENCY_ERROR: 'IDEMPOTENCY_ERROR',
-    REQUEST_LOCK_ERROR: 'REQUEST_LOCK_ERROR'
+    REQUEST_LOCK_ERROR: 'REQUEST_LOCK_ERROR',
+    TOKEN_EXPIRED_ERROR: 'TOKEN_EXPIRED_ERROR',
+    TOKEN_INVALID_ERROR: 'TOKEN_INVALID_ERROR'
   },
 
-  // Validation Messages (no necesitan ser configurables)
-  VALIDATION_MESSAGES: {
-    REQUIRED_FIELD: 'Este campo es requerido',
-    INVALID_EMAIL: 'Email inválido',
-    INVALID_UUID: 'UUID inválido',
-    MIN_LENGTH: 'Longitud mínima no cumplida',
-    MAX_LENGTH: 'Longitud máxima excedida',
-    INVALID_FORMAT: 'Formato inválido'
+  // ==============================================
+  // SUCCESS MESSAGES
+  // ==============================================
+  SUCCESS: {
+    USER_REGISTERED: 'Usuario registrado exitosamente',
+    LOGIN_SUCCESS: 'Inicio de sesión exitoso',
+    LOGOUT_SUCCESS: 'Cierre de sesión exitoso',
+    PROFILE_UPDATED: 'Perfil actualizado exitosamente',
+    PRODUCT_CREATED: 'Producto creado exitosamente',
+    PRODUCT_UPDATED: 'Producto actualizado exitosamente',
+    PRODUCT_DELETED: 'Producto eliminado exitosamente'
+  },
+
+  // ==============================================
+  // ERROR MESSAGES
+  // ==============================================
+  ERRORS: {
+    // Authentication
+    INVALID_CREDENTIALS: 'Credenciales inválidas',
+    ACCOUNT_BLOCKED: 'Cuenta bloqueada temporalmente. Intente más tarde',
+    UNAUTHORIZED: 'No autorizado',
+    TOKEN_EXPIRED: 'Token expirado',
+    TOKEN_INVALID: 'Token inválido',
+    TOKEN_REQUIRED: 'Token requerido',
+    
+    // User
+    USER_NOT_FOUND: 'Usuario no encontrado',
+    USER_ALREADY_EXISTS: 'El usuario ya existe',
+    USER_INACTIVE: 'Usuario inactivo',
+    
+    // Product
+    PRODUCT_NOT_FOUND: 'Producto no encontrado',
+    INSUFFICIENT_STOCK: 'Stock insuficiente',
+    
+    // General
+    INTERNAL_ERROR: 'Error interno del servidor',
+    VALIDATION_ERROR: 'Error de validación',
+    RATE_LIMIT_EXCEEDED: 'Límite de peticiones excedido',
+    REQUEST_LOCKED: 'Solicitud en proceso. Por favor espere',
+    DUPLICATE_REQUEST: 'Solicitud duplicada detectada',
+    FORBIDDEN: 'Acceso denegado'
+  },
+
+  // ==============================================
+  // REGEX PATTERNS
+  // ==============================================
+  REGEX_PATTERNS: {
+    EMAIL: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+    UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/,
+    PHONE: /^\+?[1-9]\d{1,14}$/ // E.164 format
   }
 };

@@ -1,9 +1,9 @@
 // seeders/20250108000002-phone-prefixes.js
 'use strict';
 const { v4: uuidv4 } = require('uuid');
-require('dotenv').config();
+const { database } = require('../shared/constants');
 
-const SCHEMA = process.env.DB_SCHEMA;
+const SCHEMA = database.schema;
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {

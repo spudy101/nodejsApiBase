@@ -1,14 +1,29 @@
 // servers/admin.js
+
+// ============================================
+// 1. CARGAR .ENV PRIMERO
+// ============================================
 require('dotenv').config();
+
+// ============================================
+// 2. VALIDAR CONFIGURACIÓN (FAIL-FAST)
+// ============================================
+// ⚠️ IMPORTANTE: Esto valida ANTES de importar cualquier cosa
+// Si falta alguna variable crítica, el proceso termina aquí
+const { 
+  server 
+} = require('../shared/constants');
+
+// ============================================
+// 3. IMPORTS (solo después de validar config)
+// ============================================
 const db = require('../shared/models');
 const redisClient = require('../shared/utils/redis.util');
 const { logger } = require('../shared/utils/logger.util');
+const notificationEmitter = require('../shared/utils/notificationEmitter.util');
 
-// Importar la app del admin
+// Importar la app del admin (ya incluye su propio Swagger)
 const adminApp = require('../modules/admin/app');
-
-const PORT = process.env.ADMIN_PORT || process.env.PORT || 3002;
-const HOST = process.env.HOST || '0.0.0.0';
 
 class AdminServer {
   constructor() {
@@ -17,71 +32,50 @@ class AdminServer {
 
   async start() {
     try {
+      logger.info('=================================================');
+      logger.info('🚀 STARTING ADMIN SERVER');
+      logger.info('=================================================');
+      logger.info(`Environment: ${server.nodeEnv}`); // ✅ Desde constants
+      logger.info(`Port: ${server.adminPort}`);      // ✅ Desde constants
+      logger.info(`Host: ${server.host}`);           // ✅ Desde constants
+      logger.info('=================================================');
+
       // Connect to Redis
       logger.info('Connecting to Redis...');
       await redisClient.connect();
 
       if (redisClient.isAvailable()) {
-        logger.info('🚀 Admin server starting WITH Redis');
+        logger.info('✅ Redis connected');
       } else {
-        logger.warn('🚀 Admin server starting WITHOUT Redis (single-instance mode)');
+        logger.warn('⚠️  Running WITHOUT Redis (single-instance mode)');
       }
+
+      // Initialize notification emitter
+      await notificationEmitter.initialize();
+      logger.info('✅ Notification emitter initialized');
 
       // Connect to Database
       logger.info('Connecting to database...');
       await db.sequelize.authenticate();
-      logger.info('Database connection established successfully');
+      logger.info('✅ Database connection established');
 
-      // Add health check route to the app before starting
-      adminApp.get('/health', async (req, res) => {
-        const healthCheck = {
-          success: true,
-          status: 'healthy',
-          service: 'admin',
-          timestamp: new Date().toISOString(),
-          uptime: process.uptime(),
-          environment: process.env.NODE_ENV || 'development',
-          services: {
-            database: 'unknown',
-            redis: 'unknown'
-          }
-        };
-
-        // Check Redis
-        healthCheck.services.redis = redisClient.isAvailable() ? 'connected' : 'disconnected';
-
-        // Check Database
-        try {
-          await db.sequelize.authenticate();
-          healthCheck.services.database = 'connected';
-        } catch (error) {
-          healthCheck.services.database = 'disconnected';
-          healthCheck.status = 'degraded';
-          healthCheck.success = false;
-        }
-
-        // 🔥 Retorna 503 si algún servicio crítico falla
-        const statusCode = healthCheck.success ? 200 : 503;
-        res.status(statusCode).json(healthCheck);
-      });
-
-      // Start server
-      this.server = adminApp.listen(PORT, HOST, () => {
-        logger.info(`=================================================`);
-        logger.info(`🚀 ADMIN SERVER RUNNING`);
-        logger.info(`=================================================`);
-        logger.info(`Server: http://${HOST}:${PORT}`);
-        logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-        logger.info(`Health check: http://${HOST}:${PORT}/health`);
-        logger.info(`API Base: http://${HOST}:${PORT}`);
-        logger.info(`=================================================`);
+      // Start HTTP server
+      this.server = adminApp.listen(server.adminPort, server.host, () => {
+        logger.info('=================================================');
+        logger.info('🎉 ADMIN SERVER RUNNING');
+        logger.info('=================================================');
+        logger.info(`🌐 Server: http://${server.host}:${server.adminPort}`);
+        logger.info(`📊 Environment: ${server.nodeEnv}`);
+        logger.info(`❤️  Health: http://${server.host}:${server.adminPort}/health`);
+        logger.info(`📚 API Docs: http://${server.host}:${server.adminPort}/docs`);
+        logger.info('=================================================');
       });
 
       // Handle graceful shutdown
       this.setupGracefulShutdown();
 
     } catch (error) {
-      logger.error('Failed to start admin server', { 
+      logger.error('❌ Failed to start admin server', { 
         error: error.message, 
         stack: error.stack 
       });
@@ -91,32 +85,34 @@ class AdminServer {
 
   setupGracefulShutdown() {
     const gracefulShutdown = async (signal) => {
-      logger.info(`${signal} received, starting graceful shutdown...`);
+      logger.info(`\n${signal} received, starting graceful shutdown...`);
 
       if (this.server) {
         this.server.close(async () => {
-          logger.info('HTTP server closed');
+          logger.info('✅ HTTP server closed');
 
           try {
             // Close database connection
             await db.sequelize.close();
-            logger.info('Database connection closed');
+            logger.info('✅ Database connection closed');
 
             // Close Redis connection
             await redisClient.disconnect();
-            logger.info('Redis connection closed');
+            logger.info('✅ Redis connection closed');
 
-            logger.info('Graceful shutdown completed');
+            logger.info('🎉 Graceful shutdown completed');
             process.exit(0);
           } catch (error) {
-            logger.error('Error during graceful shutdown', { error: error.message });
+            logger.error('❌ Error during graceful shutdown', { 
+              error: error.message 
+            });
             process.exit(1);
           }
         });
 
-        // Force shutdown after timeout
+        // Force shutdown after timeout (10 seconds)
         setTimeout(() => {
-          logger.error('Forced shutdown due to timeout');
+          logger.error('❌ Forced shutdown due to timeout');
           process.exit(1);
         }, 10000);
       }
@@ -126,26 +122,37 @@ class AdminServer {
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+    // Global error handlers
     process.on('uncaughtException', (error) => {
-      logger.error('Uncaught Exception DETECTED', {
+      logger.error('❌ Uncaught Exception DETECTED', {
         message: error?.message,
         stack: error?.stack,
       });
+      // En producción, es mejor dejar que el proceso muera
+      if (server.nodeEnv === 'production') {
+        process.exit(1);
+      }
     });
 
     process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection DETECTED', {
+      logger.error('❌ Unhandled Rejection DETECTED', {
         reason,
         promise,
         reasonMessage: reason?.message,
         reasonStack: reason?.stack,
       });
+      // En producción, es mejor dejar que el proceso muera
+      if (server.nodeEnv === 'production') {
+        process.exit(1);
+      }
     });
   }
 }
 
-// Start admin server
-const server = new AdminServer();
-server.start();
+// ============================================
+// START SERVER
+// ============================================
+const adminServer = new AdminServer();
+adminServer.start();
 
-module.exports = server;
+module.exports = adminServer;

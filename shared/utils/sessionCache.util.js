@@ -4,6 +4,7 @@
 const redisClient = require('./redis.util');
 const localCache = require('./cache.util');
 const { logger } = require('./logger.util');
+const config = require('../constants/index'); 
 
 class SessionCacheUtil {
   /**
@@ -25,10 +26,10 @@ class SessionCacheUtil {
    * @param {string} userId - User ID
    * @param {string} deviceFingerprint - Device fingerprint
    * @param {Object} tokens - Cognito tokens
-   * @param {number} expiresIn - TTL in seconds (default: 3600 = 1 hour)
+   * @param {number} expiresIn - TTL in seconds (default desde config)
    * @returns {Promise<string>} - Cache key
    */
-  static async storeSession(userId, deviceFingerprint, tokens, expiresIn = 3600) {
+  static async storeSession(userId, deviceFingerprint, tokens, expiresIn = config.ttl.session) { // ✅ Desde config
     const cache = this.getCache();
     const cacheKey = this.generateSessionKey(userId, deviceFingerprint);
 
@@ -162,10 +163,10 @@ class SessionCacheUtil {
    * Update session last activity (refresh TTL)
    * @param {string} userId - User ID
    * @param {string} deviceFingerprint - Device fingerprint
-   * @param {number} expiresIn - New TTL in seconds
+   * @param {number} expiresIn - New TTL in seconds (default desde config)
    * @returns {Promise<boolean>}
    */
-  static async touchSession(userId, deviceFingerprint, expiresIn = 3600) {
+  static async touchSession(userId, deviceFingerprint, expiresIn = config.ttl.session) { // ✅ Desde config
     const cache = this.getCache();
     const cacheKey = this.generateSessionKey(userId, deviceFingerprint);
 

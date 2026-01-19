@@ -6,7 +6,7 @@ const ApiResponse = require('../utils/response.util');
 class KycNotificationPreferenceController {
   /**
    * Get all notification preferences
-   * GET /kyc-notification-preference/preferences
+   * GET /<admin>o<client>/api/kyc/notification-preferences
    */
   async getPreferences(req, res, next) {
     try {
@@ -19,7 +19,7 @@ class KycNotificationPreferenceController {
 
   /**
    * Update global notification preference
-   * PUT /kyc-notification-preference/global
+   * PUT /<admin>o<client>/api/kyc/notification-preferences/global
    */
   async updateGlobalPreference(req, res, next) {
     try {
@@ -32,7 +32,7 @@ class KycNotificationPreferenceController {
 
   /**
    * Update notification type preference
-   * PUT /kyc-notification-preference/type
+   * PUT /<admin>o<client>/api/kyc/notification-preferences/type
    */
   async updateTypePreference(req, res, next) {
     try {
@@ -45,12 +45,12 @@ class KycNotificationPreferenceController {
 
   /**
    * Delete notification type preference
-   * DELETE /kyc-notification-preference/type
+   * DELETE /<admin>o<client>/api/kyc/notification-preferences/type
    */
   async deleteTypePreference(req, res, next) {
     try {
-      const result = await KycNotificationPreferenceService.deleteTypePreference(req.body, req.user);
-      return ApiResponse.success(res, 'Preferencia de tipo eliminada exitosamente', result);
+      await KycNotificationPreferenceService.deleteTypePreference(req.body, req.user);
+      return ApiResponse.success(res, 'Preferencia de tipo eliminada exitosamente');
     } catch (error) {
       next(error);
     }
@@ -58,7 +58,7 @@ class KycNotificationPreferenceController {
 
   /**
    * Batch update notification type preferences
-   * PUT /kyc-notification-preference/batch
+   * PUT /<admin>o<client>/api/kyc/notification-preferences/batch
    */
   async batchUpdateTypePreferences(req, res, next) {
     try {

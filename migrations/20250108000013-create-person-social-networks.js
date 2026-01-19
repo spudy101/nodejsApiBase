@@ -2,7 +2,7 @@
 'use strict';
 require('dotenv').config();
 
-const SCHEMA = process.env.DB_SCHEMA;
+const SCHEMA = database.schema;
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {

@@ -1,10 +1,11 @@
 // src/utils/encryption.js
 const crypto = require('crypto');
+const { encryption } = require('../constants');
 
 // 🔹 Cargar claves desde .env
-const AES_KEY = Buffer.from(process.env.AES_KEY, 'hex'); // 32 bytes para AES-256
-const AES_IV = Buffer.from(process.env.AES_IV, 'hex');   // 16 bytes
-const ALGORITHM = process.env.ENCRYPTION_ALGORITHM || 'aes-256-cbc';
+const AES_KEY = Buffer.from(encryption.aesKey, 'hex'); // 32 bytes para AES-256
+const AES_IV = Buffer.from(encryption.aesIv, 'hex');   // 16 bytes
+const ALGORITHM = encryption.algorithm || 'aes-256-cbc';
 
 class EncryptionUtil {
   /**

@@ -1,7 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
-
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const VerificationCode = sequelize.define(
@@ -47,7 +47,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'verification_codes',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
     }
   );

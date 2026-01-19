@@ -12,11 +12,9 @@ const {
 
 class NotificationController {
 
-  // ==================== LISTA MEZCLADA ====================
-
   /**
    * Obtiene lista de notificaciones mezcladas (personal + global) con paginación
-   * GET /api/notifications?page=1&limit=10&sortBy=created_at&order=DESC
+   * GET /<admin>o<client>/api/notifications?page=1&limit=10&sortBy=created_at&order=DESC
    */
   async getNotificationsList(req, res, next) {
     try {
@@ -41,11 +39,9 @@ class NotificationController {
     }
   }
 
-  // ==================== LISTA PERSONAL ====================
-
   /**
    * Obtiene solo notificaciones personales con paginación
-   * GET /api/notifications/personal?page=1&limit=10
+   * GET /<admin>o<client>/api/notifications/personal?page=1&limit=10
    */
   async getPersonalNotifications(req, res, next) {
     try {
@@ -70,11 +66,9 @@ class NotificationController {
     }
   }
 
-  // ==================== LISTA GLOBAL ====================
-
   /**
    * Obtiene solo notificaciones globales con paginación
-   * GET /api/notifications/global?page=1&limit=10
+   * GET /<admin>o<client>/api/notifications/global?page=1&limit=10
    */
   async getGlobalNotifications(req, res, next) {
     try {
@@ -99,11 +93,9 @@ class NotificationController {
     }
   }
 
-  // ==================== CONTADOR (REST) ====================
-
   /**
    * Obtiene el contador de notificaciones no leídas
-   * GET /api/notifications/count
+   * GET /<admin>o<client>/api/notifications/count
    */
   async getUnreadCount(req, res, next) {
     try {
@@ -122,29 +114,24 @@ class NotificationController {
     }
   }
 
-  // ==================== CONTADOR SSE ====================
-
   /**
    * Stream SSE para contador de notificaciones en tiempo real
-   * GET /api/notifications/count/stream
+   * GET /<admin>o<client>/api/notifications/count/stream
    */
   async streamUnreadCount(req, res) {
     const userId = req.user.userId;
 
     try {
-      // 1. Configurar headers SSE
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no'); // Deshabilitar buffering en Nginx
+      res.setHeader('X-Accel-Buffering', 'no');
 
-      // 2. Detectar reconexión
       const lastEventId = req.headers['last-event-id'];
       if (lastEventId) {
         logger.debug('SSE reconnection detected', { userId, lastEventId });
       }
 
-      // 3. Enviar contador inicial
       const initialCount = await notificationService.getUnreadCount(userId);
       const eventId = Date.now();
 
@@ -153,12 +140,10 @@ class NotificationController {
 
       logger.info('SSE connection established', { userId, initialCount });
 
-      // 4. Configurar heartbeat (cada 30s)
       const heartbeatInterval = setInterval(() => {
         res.write(`:heartbeat\n\n`);
       }, 30000);
 
-      // 5. Suscribirse a eventos de actualización
       const eventListener = (data) => {
         if (data.userId === userId) {
           const eventId = Date.now();
@@ -171,7 +156,6 @@ class NotificationController {
 
       notificationEmitter.on('count-updated', eventListener);
 
-      // 6. Cleanup al cerrar conexión
       req.on('close', () => {
         clearInterval(heartbeatInterval);
         notificationEmitter.off('count-updated', eventListener);
@@ -186,23 +170,20 @@ class NotificationController {
         stack: error.stack
       });
 
-      // Enviar error al cliente
       res.write(`event: error\n`);
       res.write(`data: ${JSON.stringify({ error: 'Error interno del servidor' })}\n\n`);
       res.end();
     }
   }
 
-  // ==================== CREAR NOTIFICACIÓN ====================
-
   /**
    * Crea una notificación (endpoint para servicios externos)
-   * POST /api/notifications
+   * POST /<admin>o<client>/api/notifications
    */
   async createNotification(req, res, next) {
     try {
       const metadata = {
-        transaction: null // Puedes agregar transacción si es necesario
+        transaction: null
       };
 
       const result = await notificationService.createNotification(req.body, metadata);

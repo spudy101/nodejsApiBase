@@ -141,7 +141,7 @@ const kycPersonPaths = {
       }
     },
 
-    post: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Crear nuevo usuario',
       description: 'Crea un nuevo usuario en el sistema. Genera automáticamente una contraseña temporal que se envía por email.',
@@ -215,7 +215,7 @@ const kycPersonPaths = {
   },
 
   '/admin/api/kyc/person/{userId}/activate': {
-    post: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Activar usuario',
       description: 'Activa un usuario previamente desactivado',
@@ -265,7 +265,7 @@ const kycPersonPaths = {
   },
 
   '/admin/api/kyc/person/{userId}/deactivate': {
-    post: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Desactivar usuario',
       description: 'Desactiva un usuario activo, impidiendo su acceso al sistema',
@@ -315,7 +315,7 @@ const kycPersonPaths = {
   },
 
   '/admin/api/kyc/person/{userId}/reset-password': {
-    post: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Resetear contraseña',
       description: 'Genera una nueva contraseña temporal para el usuario y la envía por email',
@@ -365,7 +365,7 @@ const kycPersonPaths = {
   },
 
   '/admin/api/kyc/person/{userId}/disable-mfa': {
-    post: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Desactivar MFA',
       description: 'Desactiva la autenticación multifactor (TOTP) de un usuario',
@@ -415,7 +415,7 @@ const kycPersonPaths = {
   },
 
   '/admin/api/kyc/person/{userId}/email': {
-    patch: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Cambiar email de usuario',
       description: 'Actualiza el email de un usuario. Se marca automáticamente como verificado.',
@@ -481,7 +481,7 @@ const kycPersonPaths = {
   },
 
   '/admin/api/kyc/person/{userId}/national-id': {
-    patch: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Cambiar National ID',
       description: 'Actualiza el número de identificación nacional de un usuario',
@@ -546,7 +546,7 @@ const kycPersonPaths = {
   },
 
   '/admin/api/kyc/person/{userId}/role': {
-    patch: {
+    put: {
       tags: ['KYC Person - Admin'],
       summary: 'Cambiar rol de usuario',
       description: 'Actualiza el rol asignado a un usuario',

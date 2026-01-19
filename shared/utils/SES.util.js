@@ -2,13 +2,14 @@
 
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const { logger } = require('./logger.util');
+const { notifications, aws } = require('../constants');
 
 class SESUtil {
   static sesClient = new SESClient({
-    region: process.env.AWS_REGION,
+    region: aws.region,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      accessKeyId: aws.accessKeyId,
+      secretAccessKey: aws.secretAccessKey,
     },
   });
 
@@ -79,7 +80,7 @@ class SESUtil {
   static async enviarEmail(destinatario, asunto, cuerpoHtml, cuerpoTexto = '') {
     try {
       const params = {
-        Source: process.env.SES_FROM_EMAIL || 'DemocraciaLiquida <no-reply@mensajeria.democraciaonline.com>',
+        Source: notifications.ses.fromEmail,
         Destination: {
           ToAddresses: [destinatario],
         },

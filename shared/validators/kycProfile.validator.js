@@ -6,12 +6,11 @@ class KycProfileValidator {
 
   /**
    * Validation for updating profile
-   * PUT /kyc-profile/profile
+   * PUT /<admin>o<client>/api/kyc/profile
    */
   static updateProfile() {
     return [
 
-      // Validación global
       body().custom((value) => {
         const allowedFields = [
           'username',
@@ -56,10 +55,6 @@ class KycProfileValidator {
           return true;
         }),
 
-      // =========================
-      // Campos individuales
-      // =========================
-
       body('username')
         .optional()
         .isString().withMessage('El username debe ser una cadena de texto')
@@ -70,7 +65,6 @@ class KycProfileValidator {
         .optional()
         .isUUID().withMessage('El avatar_id debe ser un UUID válido'),
 
-      // Location (objeto anidado)
       body('location.country_id')
         .optional()
         .isUUID().withMessage('El country_id debe ser un UUID válido'),
@@ -102,7 +96,7 @@ class KycProfileValidator {
 
   /**
    * Validation for updating email
-   * PUT /kyc-profile/email
+   * PUT /<admin>o<client>/api/kyc/profile/email
    */
   static updateEmail() {
     return [
@@ -120,7 +114,7 @@ class KycProfileValidator {
 
   /**
    * Validation for updating phone
-   * PUT /kyc-profile/phone
+   * PUT /<admin>o<client>/api/kyc/profile/phone
    */
   static updatePhone() {
     return [
@@ -142,7 +136,7 @@ class KycProfileValidator {
 
   /**
    * Validation for updating password
-   * PUT /kyc-profile/password
+   * PUT /<admin>o<client>/api/kyc/profile/password
    */
   static updatePassword() {
     return [
@@ -160,8 +154,8 @@ class KycProfileValidator {
   }
 
   /**
-   * Validation for updating email
-   * PUT /kyc-profile/email
+   * Validation for updating national ID
+   * PUT /<admin>o<client>/api/kyc/profile/nationalId
    */
   static updateNationalId() {
     return [
@@ -175,9 +169,12 @@ class KycProfileValidator {
     ];
   }
 
+  /**
+   * Validation for deleting account
+   * DELETE /<admin>o<client>/api/kyc/profile/delete-account
+   */
   static deleteAccount() {
     return [
-
       body('currentPassword')
         .notEmpty().withMessage('La contraseña actual es requerida')
         .isString().withMessage('La contraseña debe ser una cadena de texto')

@@ -1,6 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const UserPushToken = sequelize.define(
@@ -44,7 +45,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'user_push_tokens',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
     }
   );

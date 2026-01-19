@@ -2,8 +2,7 @@
 
 const ApiResponse = require('../utils/response.util');
 const AppError = require('../utils/appError.util');
-const { HTTP_STATUS, ERROR_CODES } = require('../constants');
-const { ERRORS } = require('../constants/messages');
+const { HTTP_STATUS, ERROR_CODES, ERRORS, server } = require('../constants');
 const { logger } = require('../utils/logger.util');
 const { sanitizeAuditBody } = require('../utils/sanitizeAuditBody.util');
 
@@ -12,7 +11,7 @@ class ErrorMiddleware {
     const errorContext = {
       correlationId: req.correlationId,
       message: err.message,
-      stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+      stack: server.nodeEnv === 'production' ? undefined : err.stack, // ✅ Desde config
       statusCode: err.statusCode || 500,
       code: err.code,
       isOperational: err.isOperational || false,
@@ -74,7 +73,7 @@ class ErrorMiddleware {
     // Error genérico
     return ApiResponse.error(
       res,
-      process.env.NODE_ENV === 'production' ? ERRORS.INTERNAL_ERROR : err.message,
+      server.nodeEnv === 'production' ? ERRORS.INTERNAL_ERROR : err.message, // ✅ Desde constants
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
       ERROR_CODES.INTERNAL_ERROR
     );

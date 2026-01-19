@@ -1,7 +1,7 @@
 'use strict';
-require('dotenv').config();
+const { database, notifications } = require('../shared/constants');
 
-const SCHEMA = process.env.DB_SCHEMA;
+const SCHEMA = database.schema;
 const { v4: uuidv4 } = require('uuid');
 
 /** @type {import('sequelize-cli').Migration} */
@@ -36,7 +36,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #007bff;">¡Bienvenido a Democracia Líquida!</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -73,7 +73,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #007bff;">{{titulo}}</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -104,7 +104,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #007bff;">Nueva votación disponible</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -142,7 +142,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #dc3545;">⏰ Votación próxima a cerrar</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -178,7 +178,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #28a745;">📊 Resultados de votación</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -215,7 +215,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #28a745;">🔐 ¡Seguridad activada!</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -254,7 +254,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #dc3545;">⚠️ Advertencia de seguridad</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -296,7 +296,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #dc3545;">🔐 Aviso de seguridad</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">
@@ -338,7 +338,7 @@ module.exports = {
           <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
               <div style="text-align: center;">
-                <img src="${process.env.LOGO_URL || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="${notifications.logoUrl || 'https://via.placeholder.com/150'}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2 style="color: #198754;">🔑 Cambio de contraseña</h2>
               </div>
               <div style="font-size: 16px; color: #333; line-height: 1.6; margin: 20px 0;">

@@ -21,27 +21,30 @@ const {
 } = require('@aws-sdk/client-cognito-identity-provider');
 const AppError = require('./appError.util');
 const { logger } = require('./logger.util');
+const { cognito, aws } = require('../constants/index');
 
 class CognitoUtil {
   static poolData = {
-    UserPoolId: process.env.COGNITO_USER_POOL_ID,
-    ClientId: process.env.COGNITO_CLIENT_ID,
+    UserPoolId: cognito.userPoolId,
+    ClientId: cognito.clientId,
   };
 
   static userPool = new CognitoUserPool(this.poolData);
 
+  static USER_POOL_ID = cognito.userPoolId;
+
   static adminClient = new CognitoIdentityProviderClient({
-    region: process.env.AWS_REGION,
+    region: aws.region,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      accessKeyId: aws.accessKeyId,
+      secretAccessKey: aws.secretAccessKey,
     },
   });
 
   static jwtVerifier = CognitoJwtVerifier.create({
-    userPoolId: process.env.COGNITO_USER_POOL_ID,
+    userPoolId: cognito.userPoolId,
     tokenUse: 'access',
-    clientId: process.env.COGNITO_CLIENT_ID,
+    clientId: cognito.clientId,
   });
 
   // Mapeo de errores de Cognito
@@ -227,7 +230,7 @@ class CognitoUtil {
   static async deleteUser(username) {
     try {
       const command = new AdminDeleteUserCommand({
-        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        UserPoolId: USER_POOL_ID,
         Username: username,
       });
       await this.adminClient.send(command);
@@ -262,7 +265,7 @@ class CognitoUtil {
   static async _confirmUser(username) {
     try {
       const command = new AdminConfirmSignUpCommand({
-        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        UserPoolId: USER_POOL_ID,
         Username: username,
       });
       await this.adminClient.send(command);
@@ -365,7 +368,7 @@ class CognitoUtil {
   static async disableTOTPMFA(username) {
     try {
       const command = new AdminSetUserMFAPreferenceCommand({
-        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        UserPoolId: USER_POOL_ID,
         Username: username,
         SoftwareTokenMfaSettings: {
           Enabled: false,
@@ -392,7 +395,7 @@ class CognitoUtil {
   static async changeUserPassword(username, newPassword, permanent = true) {
     try {
       const command = new AdminSetUserPasswordCommand({
-        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        UserPoolId: USER_POOL_ID,
         Username: username,
         Password: newPassword,
         Permanent: permanent,
@@ -420,7 +423,7 @@ class CognitoUtil {
   static async updateUserEmail(username, newEmail) {
     try {
       const command = new AdminUpdateUserAttributesCommand({
-        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        UserPoolId: USER_POOL_ID,
         Username: username,
         UserAttributes: [
           {

@@ -6,7 +6,7 @@ const ApiResponse = require('../utils/response.util');
 class KycSocialNetworkController {
   /**
    * Get all social networks
-   * GET /kyc-social-network/networks
+   * GET /<admin>o<client>/api/kyc/social-networks
    */
   async getSocialNetworks(req, res, next) {
     try {
@@ -19,7 +19,7 @@ class KycSocialNetworkController {
 
   /**
    * Add a new social network
-   * POST /kyc-social-network/network
+   * POST /<admin>o<client>/api/kyc/social-networks
    */
   async addSocialNetwork(req, res, next) {
     try {
@@ -32,7 +32,7 @@ class KycSocialNetworkController {
 
   /**
    * Update an existing social network
-   * PUT /kyc-social-network/network
+   * PUT /<admin>o<client>/api/kyc/social-networks
    */
   async updateSocialNetwork(req, res, next) {
     try {
@@ -45,12 +45,12 @@ class KycSocialNetworkController {
 
   /**
    * Delete a social network
-   * DELETE /kyc-social-network/network
+   * DELETE /<admin>o<client>/api/kyc/social-networks
    */
   async deleteSocialNetwork(req, res, next) {
     try {
-      const result = await KycSocialNetworkService.deleteSocialNetwork(req.body, req.user);
-      return ApiResponse.success(res, 'Red social eliminada exitosamente', result);
+      await KycSocialNetworkService.deleteSocialNetwork(req.body, req.user);
+      return ApiResponse.success(res, 'Red social eliminada exitosamente');
     } catch (error) {
       next(error);
     }

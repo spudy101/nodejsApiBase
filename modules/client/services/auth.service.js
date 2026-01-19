@@ -13,14 +13,9 @@ const { logger } = require('../../../shared/utils/logger.util');
 const { RegisterResponseDTO } = require('../dtos/auth.dto');
 const { sequelize } = require('../../../shared/models');
 const crypto = require('crypto');
+const { frontend, security, USER_ROLES } = require('../../../shared/constants/index');
 
 class AuthClientService {
-  static CONFIG = {
-    DEFAULT_ROLE_ID: process.env.DEFAULT_ROLE_ID || '55ccdff0-af63-4c35-835a-b18215537b8a',
-    DEFAULT_AVATAR_ID: process.env.DEFAULT_AVATAR_ID || '99653c0a-a9cc-4603-99ad-8c8cc6b3ddf1',
-    RESET_TOKEN_EXPIRATION_MINUTES: 15,
-    FRONTEND_RESET_URL: process.env.FRONTEND_RESET_URL,
-  };
 
   /**
    * Registra un nuevo usuario en el sistema
@@ -96,7 +91,7 @@ class AuthClientService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + AuthClientService.CONFIG.RESET_TOKEN_EXPIRATION_MINUTES * 60 * 1000);
+    const expiresAt = new Date(Date.now() + security.expirationMinutes * 60 * 1000);
 
     await resetCredentialsRepository.create({
       user_id: user.user_id,
@@ -105,7 +100,7 @@ class AuthClientService {
       expires_at: expiresAt,
     });
 
-    const resetUrl = `${AuthClientService.CONFIG.FRONTEND_RESET_URL}?token=${token}&type=${type}`;
+    const resetUrl = `${frontend.resetCredentialUrl}?token=${token}&type=${type}`;
 
     setImmediate(() => {
       this._sendResetEmail(email, user.person.first_name, resetUrl, type)
@@ -200,6 +195,13 @@ class AuthClientService {
     const transaction = await sequelize.transaction();
 
     try {
+      // Buscar el rol por nombre en lugar de usar un ID fijo
+      const defaultRole = await roleRepository.findByName(USER_ROLES.USER, { transaction });
+      
+      if (!defaultRole) {
+        throw new Error(`Role ${USER_ROLES.USER} not found in database`);
+      }
+
       const person = await personRepository.create({
         first_name: firstName,
         last_name: lastName,
@@ -218,8 +220,7 @@ class AuthClientService {
         username: nationalId,
         password,
         person_id: person.person_id,
-        role_id: AuthClientService.CONFIG.DEFAULT_ROLE_ID,
-        avatar_id: AuthClientService.CONFIG.DEFAULT_AVATAR_ID,
+        role_id: defaultRole.role_id, // Usar el ID obtenido dinámicamente
         cognito_sub: null,
       }, { transaction });
 
@@ -234,7 +235,7 @@ class AuthClientService {
 
       await transaction.commit();
       
-      logger.info('User created in DB', { userId: user.user_id });
+      logger.info('User created in DB', { userId: user.user_id, roleId: defaultRole.role_id });
       
       return { user, person, personContact };
     } catch (error) {
@@ -297,7 +298,7 @@ class AuthClientService {
     const htmlBody = `
       <h2>Hola ${firstName},</h2>
       <p>${message}</p>
-      <p>Este enlace expirará en ${AuthClientService.CONFIG.RESET_TOKEN_EXPIRATION_MINUTES} minutos.</p>
+      <p>Este enlace expirará en ${security.expirationMinutes} minutos.</p>
       <p>Si no solicitaste este cambio, ignora este correo.</p>
     `;
 

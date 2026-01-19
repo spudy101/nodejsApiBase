@@ -1,5 +1,23 @@
 // servers/monolith.js
+
+// ============================================
+// 1. CARGAR .ENV PRIMERO
+// ============================================
 require('dotenv').config();
+
+// ============================================
+// 2. VALIDAR CONFIGURACIÓN (FAIL-FAST)
+// ============================================
+// ⚠️ IMPORTANTE: Esto valida ANTES de importar cualquier cosa
+// Si falta alguna variable crítica, el proceso termina aquí
+const { 
+  server, 
+  notifications 
+} = require('../shared/constants');
+
+// ============================================
+// 3. IMPORTS (solo después de validar config)
+// ============================================
 const express = require('express');
 const db = require('../shared/models');
 const redisClient = require('../shared/utils/redis.util');
@@ -10,9 +28,6 @@ const notificationEmitter = require('../shared/utils/notificationEmitter.util');
 // Importar las apps de cada módulo (ya incluyen su propio Swagger)
 const clientApp = require('../modules/client/app');
 const adminApp = require('../modules/admin/app');
-
-const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0';
 
 class MonolithServer {
   constructor() {
@@ -29,9 +44,11 @@ class MonolithServer {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
+        environment: server.nodeEnv, // ✅ Desde constants
         services: {
           client: 'running',
-          admin: 'running'
+          admin: 'running',
+          redis: redisClient.isAvailable() ? 'connected' : 'disconnected'
         }
       });
     });
@@ -43,6 +60,7 @@ class MonolithServer {
         message: 'Welcome to Democracia Líquida API - Monolith Mode',
         version: '1.0.0',
         mode: 'monolith',
+        environment: server.nodeEnv, // ✅ Desde constants
         endpoints: {
           client: '/client',
           admin: '/admin',
@@ -71,49 +89,61 @@ class MonolithServer {
 
   async start() {
     try {
+      logger.info('=================================================');
+      logger.info('🚀 STARTING MONOLITH SERVER');
+      logger.info('=================================================');
+      logger.info(`Environment: ${server.nodeEnv}`); // ✅ Desde constants
+      logger.info(`Port: ${server.port}`);           // ✅ Desde constants
+      logger.info(`Host: ${server.host}`);           // ✅ Desde constants
+      logger.info('=================================================');
+
       // Connect to Redis
       logger.info('Connecting to Redis...');
       await redisClient.connect();
 
       if (redisClient.isAvailable()) {
-        logger.info('🚀 Monolith server starting WITH Redis');
+        logger.info('✅ Redis connected');
       } else {
-        logger.warn('🚀 Monolith server starting WITHOUT Redis (single-instance mode)');
+        logger.warn('⚠️  Running WITHOUT Redis (single-instance mode)');
       }
 
+      // Initialize notification emitter
       await notificationEmitter.initialize();
+      logger.info('✅ Notification emitter initialized');
 
       // Connect to Database
       logger.info('Connecting to database...');
       await db.sequelize.authenticate();
-      logger.info('Database connection established successfully');
-
-      // Start server
-      this.server = this.app.listen(PORT, HOST, () => {
-        logger.info(`=================================================`);
-        logger.info(`🚀 MONOLITH SERVER RUNNING`);
-        logger.info(`=================================================`);
-        logger.info(`Server: http://${HOST}:${PORT}`);
-        logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-        logger.info(`Health check: http://${HOST}:${PORT}/health`);
-        logger.info(`Client API: http://${HOST}:${PORT}/client`);
-        logger.info(`Admin API: http://${HOST}:${PORT}/admin`);
-        logger.info(`📚 Client Docs: http://${HOST}:${PORT}/client/docs`);
-        logger.info(`📚 Admin Docs: http://${HOST}:${PORT}/admin/docs`);
-        logger.info(`=================================================`);
-      });
+      logger.info('✅ Database connection established');
 
       // Start notification workers if enabled
-      if (process.env.ENABLE_NOTIFICATION_WORKERS === 'true') {
+      if (notifications.enableWorkers) { // ✅ Desde constants
         NotificationWorker.iniciar();
-        logger.info('Notification workers enabled');
+        logger.info('✅ Notification workers enabled');
+      } else {
+        logger.info('ℹ️  Notification workers disabled');
       }
+
+      // Start HTTP server
+      this.server = this.app.listen(server.port, server.host, () => {
+        logger.info('=================================================');
+        logger.info('🎉 MONOLITH SERVER RUNNING');
+        logger.info('=================================================');
+        logger.info(`🌐 Server: http://${server.host}:${server.port}`);
+        logger.info(`📊 Environment: ${server.nodeEnv}`);
+        logger.info(`❤️  Health: http://${server.host}:${server.port}/health`);
+        logger.info(`👥 Client API: http://${server.host}:${server.port}/client`);
+        logger.info(`🔐 Admin API: http://${server.host}:${server.port}/admin`);
+        logger.info(`📚 Client Docs: http://${server.host}:${server.port}/client/docs`);
+        logger.info(`📚 Admin Docs: http://${server.host}:${server.port}/admin/docs`);
+        logger.info('=================================================');
+      });
 
       // Handle graceful shutdown
       this.setupGracefulShutdown();
 
     } catch (error) {
-      logger.error('Failed to start monolith server', { 
+      logger.error('❌ Failed to start monolith server', { 
         error: error.message, 
         stack: error.stack 
       });
@@ -123,32 +153,34 @@ class MonolithServer {
 
   setupGracefulShutdown() {
     const gracefulShutdown = async (signal) => {
-      logger.info(`${signal} received, starting graceful shutdown...`);
+      logger.info(`\n${signal} received, starting graceful shutdown...`);
 
       if (this.server) {
         this.server.close(async () => {
-          logger.info('HTTP server closed');
+          logger.info('✅ HTTP server closed');
 
           try {
             // Close database connection
             await db.sequelize.close();
-            logger.info('Database connection closed');
+            logger.info('✅ Database connection closed');
 
             // Close Redis connection
             await redisClient.disconnect();
-            logger.info('Redis connection closed');
+            logger.info('✅ Redis connection closed');
 
-            logger.info('Graceful shutdown completed');
+            logger.info('🎉 Graceful shutdown completed');
             process.exit(0);
           } catch (error) {
-            logger.error('Error during graceful shutdown', { error: error.message });
+            logger.error('❌ Error during graceful shutdown', { 
+              error: error.message 
+            });
             process.exit(1);
           }
         });
 
-        // Force shutdown after timeout
+        // Force shutdown after timeout (10 seconds)
         setTimeout(() => {
-          logger.error('Forced shutdown due to timeout');
+          logger.error('❌ Forced shutdown due to timeout');
           process.exit(1);
         }, 10000);
       }
@@ -158,26 +190,37 @@ class MonolithServer {
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+    // Global error handlers
     process.on('uncaughtException', (error) => {
-      logger.error('Uncaught Exception DETECTED', {
+      logger.error('❌ Uncaught Exception DETECTED', {
         message: error?.message,
         stack: error?.stack,
       });
+      // En producción, es mejor dejar que el proceso muera
+      if (server.nodeEnv === 'production') {
+        process.exit(1);
+      }
     });
 
     process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection DETECTED', {
+      logger.error('❌ Unhandled Rejection DETECTED', {
         reason,
         promise,
         reasonMessage: reason?.message,
         reasonStack: reason?.stack,
       });
+      // En producción, es mejor dejar que el proceso muera
+      if (server.nodeEnv === 'production') {
+        process.exit(1);
+      }
     });
   }
 }
 
-// Start monolith server
-const server = new MonolithServer();
-server.start();
+// ============================================
+// START SERVER
+// ============================================
+const monolithServer = new MonolithServer();
+monolithServer.start();
 
-module.exports = server;
+module.exports = monolithServer;

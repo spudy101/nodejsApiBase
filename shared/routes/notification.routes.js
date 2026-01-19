@@ -10,7 +10,7 @@ const RequestLockMiddleware = require('../middlewares/requestLock.middleware');
 const ValidatorUtil = require('../utils/validators.util');
 
 /**
- * @route   GET /api/notifications/count/stream
+ * @route   GET /<admin>o<client>/api/notifications/count/stream
  * @desc    Stream SSE para contador de notificaciones en tiempo real
  * @access  Private
  */
@@ -23,7 +23,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/notifications/count
+ * @route   GET /<admin>o<client>/api/notifications/count
  * @desc    Obtiene el contador de notificaciones no leídas (REST)
  * @access  Private
  */
@@ -36,7 +36,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/notifications
+ * @route   GET /<admin>o<client>/api/notifications
  * @desc    Obtiene lista de notificaciones mezcladas (personal + global) con paginación
  * @access  Private
  */
@@ -51,7 +51,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/notifications/personal
+ * @route   GET /<admin>o<client>/api/notifications/personal
  * @desc    Obtiene solo notificaciones personales con paginación
  * @access  Private
  */
@@ -66,7 +66,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/notifications/global
+ * @route   GET /<admin>o<client>/api/notifications/global
  * @desc    Obtiene solo notificaciones globales con paginación
  * @access  Private
  */
@@ -81,12 +81,15 @@ router.get(
 );
 
 /**
- * @route   POST /api/notifications
+ * @route   POST /<admin>o<client>/api/notifications
  * @desc    Crea una notificación (endpoint para servicios externos)
- * @access  Public (por ahora - tú agregarás autenticación después)
+ * @access  Public
  */
 router.post(
   '/',
+  AuthMiddleware.externalAuthenticate,
+  NotificationValidator.createNotification(),
+  ValidatorUtil.handleValidationErrors,
   notificationController.createNotification
 );
 

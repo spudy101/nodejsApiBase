@@ -6,7 +6,7 @@ class NotificationValidator {
 
   /**
    * Validación para crear notificación
-   * POST /notifications
+   * POST /<admin>o<client>/api/notifications
    */
   static createNotification() {
     return [
@@ -40,7 +40,7 @@ class NotificationValidator {
 
   /**
    * Validación para query params de paginación
-   * GET /notifications
+   * GET /<admin>o<client>/api/notifications
    */
   static paginationQuery() {
     return [

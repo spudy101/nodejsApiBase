@@ -8,20 +8,21 @@ const {
 } = require('@aws-sdk/client-sns');
 const { logger } = require('./logger.util');
 const AppError = require('./appError.util');
+const { notifications, aws } = require('../constants');
 
 class SNSUtil {
   static snsClient = new SNSClient({
-    region: process.env.AWS_REGION,
+    region: aws.region,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      accessKeyId: aws.accessKeyId,
+      secretAccessKey: aws.secretAccessKey,
     },
   });
 
   // ARNs de las aplicaciones de plataforma (configurar en .env)
   static PLATFORM_ARNS = {
-    ios: process.env.SNS_PLATFORM_ARN_IOS,
-    android: process.env.SNS_PLATFORM_ARN_ANDROID,
+    ios: notifications.sns.platformArnIos,
+    android: notifications.sns.platformArnAndroid,
   };
 
   /**

@@ -1,6 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const GlobalNotificationRead = sequelize.define(
@@ -25,7 +26,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'global_notification_reads',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: false,
     }
   );

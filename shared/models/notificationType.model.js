@@ -1,6 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
+const { database } = require('../constants');
 
 module.exports = (sequelize) => {
   const NotificationType = sequelize.define(
@@ -70,7 +71,7 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'notification_types',
-      schema: process.env.DB_SCHEMA,
+      schema: database.schema,
       timestamps: true,
     }
   );

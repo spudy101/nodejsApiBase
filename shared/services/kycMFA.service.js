@@ -7,6 +7,7 @@ const AppError = require('../utils/appError.util');
 const { logger } = require('../utils/logger.util');
 const { sequelize } = require('../models');
 const { TOTPSetupResponseDTO, TOTPActivationResponseDTO, TOTPVerificationResponseDTO, PasswordValidationResponseDTO } = require('../dtos/kycMFA.dto');
+const { security } = require('../constants/index');
 
 class KycMFAService {
   /**
@@ -21,15 +22,12 @@ class KycMFAService {
     const { accessToken } = data;
     const { username, userId, totpEnabled } = tokenPayload;
 
-    // 2. Verificar que TOTP no esté ya activado
     if (totpEnabled) {
       throw AppError.conflict('TOTP ya está activado para este usuario');
     }
 
-    // 3. Asociar software token en Cognito
     const { secretCode } = await CognitoUtil.associateSoftwareToken(accessToken);
 
-    // 4. Generar otpauth URL para QR
     const otpauthUrl = this._generateOtpauthURL(username, secretCode);
 
     logger.info('TOTP setup initiated', { userId, username });
@@ -43,17 +41,16 @@ class KycMFAService {
 
   /**
    * Verifica el código TOTP y activa MFA si es correcto
-   * ✅ CORREGIDO: Ahora usa transacciones y rollback completo
    * 
    * @param {object} data - { accessToken, totpCode }
    * @param {object} tokenPayload - { sub, username } del JWT decodificado
+   * @param {object} auditContext - { ip, userAgent }
    * @returns {Promise<TOTPActivationResponseDTO>}
    */
   async verifyAndActivateTOTP(data, tokenPayload, auditContext) {
     const { accessToken, totpCode } = data;
     const { username, firstName, totpEnabled, userId, cognitoUsername } = tokenPayload;
 
-    // 2. Verificar que TOTP no esté ya activado
     if (totpEnabled) {
       throw AppError.conflict('TOTP ya está activado');
     }
@@ -61,20 +58,16 @@ class KycMFAService {
     const transaction = await sequelize.transaction();
 
     try {
-      // 3. Verificar código TOTP en Cognito
       const verificationResult = await CognitoUtil.verifySoftwareToken(accessToken, totpCode);
 
       if (verificationResult.status !== 'SUCCESS') {
         throw AppError.badRequest('Código TOTP inválido');
       }
 
-      // 4. Activar TOTP como MFA preferido en Cognito
       await CognitoUtil.enableTOTPMFA(accessToken);
 
-      // 5. Actualizar flag en BD (dentro de transacción)
       await userRepository.updateTOTPStatus(userId, true, { transaction });
 
-      // 6. Registrar cambio (dentro de transacción)
       await KycSharedUtil.logChange({
         userId: userId,
         changedByUserId: userId,
@@ -91,7 +84,6 @@ class KycMFAService {
 
       logger.info('TOTP activated successfully', { userId, username });
 
-      // 7. Notificación asíncrona (fuera de transacción)
       setImmediate(() => {
         this._enviarNotificacionTOTP('TOTP_ACTIVADO', userId, firstName, 'activado')
           .catch(err => {
@@ -111,7 +103,6 @@ class KycMFAService {
     } catch (error) {
       await transaction.rollback();
 
-      // Rollback de Cognito si fue activado
       if (error.message !== 'Código TOTP inválido') {
         try {
           await CognitoUtil.disableTOTPMFA(cognitoUsername);
@@ -140,12 +131,10 @@ class KycMFAService {
     const { accessToken, totpCode } = data;
     const { username, totpEnabled, userId } = tokenPayload;
 
-    // 2. Verificar que TOTP esté activado
     if (!totpEnabled) {
       throw AppError.badRequest('TOTP no está activado para este usuario');
     }
 
-    // 3. Verificar código en Cognito
     const verificationResult = await CognitoUtil.verifySoftwareToken(accessToken, totpCode);
 
     const isValid = verificationResult.status === 'SUCCESS';
@@ -165,22 +154,20 @@ class KycMFAService {
   /**
    * Desactiva TOTP para el usuario
    * Requiere validación de contraseña por seguridad
-   * ✅ CORREGIDO: Ahora usa transacciones y rollback completo
    * 
    * @param {object} data - { password }
    * @param {object} tokenPayload - { sub, username } del JWT decodificado
+   * @param {object} auditContext - { ip, userAgent }
    * @returns {Promise<TOTPActivationResponseDTO>}
    */
   async deactivateTOTP(data, tokenPayload, auditContext) {
     const { password } = data;
     const { cognitoUsername, username, firstName, totpEnabled, passwordHash, userId } = tokenPayload;
 
-    // 2. Verificar que TOTP esté activado
     if (!totpEnabled) {
       throw AppError.badRequest('TOTP no está activado');
     }
 
-    // 3. Validar contraseña
     const isPasswordValid = await userRepository.verifyPassword(password, passwordHash);
     
     if (!isPasswordValid) {
@@ -190,13 +177,10 @@ class KycMFAService {
     const transaction = await sequelize.transaction();
 
     try {
-      // 4. Desactivar TOTP en Cognito
       await CognitoUtil.disableTOTPMFA(cognitoUsername);
 
-      // 5. Actualizar flag en BD (dentro de transacción)
       await userRepository.updateTOTPStatus(userId, false, { transaction });
 
-      // 6. Registrar cambio (dentro de transacción)
       await KycSharedUtil.logChange({
         userId: userId,
         changedByUserId: userId,
@@ -213,7 +197,6 @@ class KycMFAService {
 
       logger.info('TOTP deactivated successfully', { userId, username });
 
-      // 7. Notificación asíncrona (fuera de transacción)
       setImmediate(() => {
         this._enviarNotificacionTOTP('TOTP_ELIMINADO', userId, firstName, 'desactivado')
           .catch(err => {
@@ -233,7 +216,6 @@ class KycMFAService {
     } catch (error) {
       await transaction.rollback();
 
-      // Rollback de Cognito si fue desactivado
       try {
         await CognitoUtil.enableTOTPMFA(cognitoUsername);
         logger.info('Cognito TOTP rollback completed', { userId });
@@ -261,7 +243,6 @@ class KycMFAService {
     const { password } = data;
     const { username, passwordHash } = tokenPayload;
 
-    // Validar contraseña en Cognito
     const isValid = await userRepository.verifyPassword(password, passwordHash);
 
     logger.info('Password validation attempt', { username, success: isValid });
@@ -272,15 +253,13 @@ class KycMFAService {
     });
   }
 
-  // ==================== MÉTODOS PRIVADOS ====================
-
   /**
    * Genera la URL otpauth para códigos QR TOTP
    * Formato: otpauth://totp/Issuer:username?secret=SECRETCODE&issuer=Issuer
    * @private
    */
   _generateOtpauthURL(username, secretCode) {
-    const issuer = encodeURIComponent(process.env.TOTP_ISSUER || 'DemocraciaLiquida');
+    const issuer = encodeURIComponent(security.totpIssuer);
     const encodedUsername = encodeURIComponent(username);
 
     return `otpauth://totp/${issuer}:${encodedUsername}?secret=${secretCode}&issuer=${issuer}`;
@@ -288,7 +267,6 @@ class KycMFAService {
 
   /**
    * Envía notificación relacionada con TOTP
-   * ✅ REFACTORIZADO: Método genérico unificado
    * @private
    */
   async _enviarNotificacionTOTP(tipoNotificacion, userId, firstName, accion) {
@@ -306,7 +284,6 @@ class KycMFAService {
 
       logger.info(`Notificación de MFA ${accion} enviada correctamente`, { userId });
     } catch (error) {
-      // No lanzar error, solo loguear
       logger.error(`Error al enviar notificación de MFA ${accion}`, {
         error: error.message,
         userId

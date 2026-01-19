@@ -3,6 +3,7 @@ const swaggerUi = require('swagger-ui-express');
 const getAllSchemas = require('./swagger/schemas');
 const commonResponses = require('./swagger/responses/common.responses');
 const commonParameters = require('./swagger/parameters/common.parameters');
+const { server } = require('../shared/constants');
 
 // Importar paths
 const authClientPaths = require('./swagger/paths/authClient.paths');
@@ -10,15 +11,20 @@ const verificationClientPaths = require('./swagger/paths/verificationClient.path
 
 const authSharedPaths = require('./swagger/paths/authShared.paths');
 const coreMaintainersSharedPaths = require('./swagger/paths/coreMaintainersShared.paths');
+const kycMFASharedPaths = require('./swagger/paths/kycMFAShared.paths');
+const kycNotificationPreferenceSharedPaths = require('./swagger/paths/kycNotificationPreferenceShared.paths');
+const kycProfileSharedPaths = require('./swagger/paths/kycProfileShared.paths');
+const kycSocialNetworkSharedPaths = require('./swagger/paths/kycSocialNetworkShared.paths');
+const notificationSharedPaths = require('./swagger/paths/notificationShared.paths');
 
 /**
  * Configuración de Swagger para el módulo CLIENT
  * Incluye rutas específicas de client + rutas compartidas
  */
 const swaggerClientDocs = (app) => {
-  const PORT = process.env.PORT || 3000;
-  const NODE_ENV = process.env.NODE_ENV || 'development';
-  const HOST = process.env.HOST || 'localhost';
+  const PORT = server.port;
+  const NODE_ENV = server.nodeEnv;
+  const HOST = server.host;
   
   // Determinar servidor según entorno
   const servers = [];
@@ -97,6 +103,11 @@ Esta API permite a los usuarios:
       // ==========================================
       ...authSharedPaths,
       ...coreMaintainersSharedPaths,
+      ...kycMFASharedPaths,
+      ...kycNotificationPreferenceSharedPaths,
+      ...kycProfileSharedPaths,
+      ...kycSocialNetworkSharedPaths,
+      ...notificationSharedPaths,
 
     },
     tags: [
@@ -113,23 +124,23 @@ Esta API permite a los usuarios:
         description: '✉️ Envío de códigos de verificación'
       },
       {
-        name: 'KYC - Profile',
+        name: 'KYC Profile - Shared',
         description: '👤 Gestión de perfil de usuario (datos personales, ubicación, contacto)'
       },
       {
-        name: 'KYC - MFA',
+        name: 'KYC MFA - Shared',
         description: '🔒 Autenticación de dos factores (configuración, verificación)'
       },
       {
-        name: 'KYC - Social Networks',
+        name: 'KYC Social Networks - Shared',
         description: '📱 Gestión de redes sociales vinculadas'
       },
       {
-        name: 'KYC - Notification Preferences',
+        name: 'KYC Notification Preferences - shared',
         description: '🔔 Configuración de preferencias de notificaciones'
       },
       {
-        name: 'Notifications',
+        name: 'Notifications - Shared',
         description: '📬 Gestión de notificaciones del usuario'
       },
       {

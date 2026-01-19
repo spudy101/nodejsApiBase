@@ -8,8 +8,7 @@ const {
     ContactInfoResponseDTO,
     UpdateEmailResponseDTO,
     UpdatePhoneResponseDTO,
-    ChangeNationalIdResponseDto,
-    DeleteAccountResponseDto
+    ChangeNationalIdResponseDto
 } = require('../dtos/kycProfile.dto');
 const personContactRepository = require('../repositories/personContact.repository');
 const personLocationRepository = require('../repositories/personLocation.repository');
@@ -17,7 +16,7 @@ const avatarRepository = require('../repositories/avatar.repository');
 const personRepository = require('../repositories/person.repository');
 const verificationCodeRepository = require('../repositories/verificationCode.repository');
 const CognitoUtil = require('../utils/cognito.util');
-const SESUtil = require('../utils/ses.util');
+const SESUtil = require('../utils/SES.util');
 const KycSharedUtil = require('../utils/kycShared.util');
 const AppError = require('../utils/appError.util');
 const { logger } = require('../utils/logger.util');
@@ -25,12 +24,6 @@ const { sequelize } = require('../models');
 
 class KycProfileService {
 
-  // ==================== MÉTODOS PÚBLICOS - CONSULTA ====================
-
-  /**
-   * Obtiene el perfil básico del usuario
-   * ✅ OPTIMIZADO: Sin validaciones redundantes
-   */
   async getProfile(metadata) {
     const { userId } = metadata;
 
@@ -46,9 +39,6 @@ class KycProfileService {
     return new BasicProfileDTO(user);
   }
 
-  /**
-   * Obtiene el perfil extendido del usuario
-   */
   async getExtendedProfile(metadata) {
     const { userId } = metadata;
 
@@ -64,9 +54,6 @@ class KycProfileService {
     return new ExtendedProfileDTO(user);
   }
 
-  /**
-   * Obtiene solo la ubicación del usuario
-   */
   async getLocation(metadata) {
     const { personId } = metadata;
 
@@ -76,9 +63,6 @@ class KycProfileService {
     return new LocationDTO(location);
   }
 
-  /**
-   * Obtiene información de contacto
-   */
   async getContactInfo(metadata) {
     const { personId } = metadata;
 
@@ -92,12 +76,6 @@ class KycProfileService {
     return new ContactInfoResponseDTO(contactInfo);
   }
 
-  // ==================== MÉTODOS PÚBLICOS - ACTUALIZACIÓN ====================
-
-  /**
-   * Actualiza el perfil general del usuario
-   * ✅ OPTIMIZADO: Sin validaciones redundantes
-   */
   async updateProfile(data, metadata) {
     const { userId, personId, username } = metadata;
     const transaction = await sequelize.transaction();
@@ -132,10 +110,6 @@ class KycProfileService {
     }
   }
 
-  /**
-   * Actualiza el email del usuario
-   * ✅ OPTIMIZADO: Sin validaciones redundantes
-   */
   async updateEmail(data, metadata, auditContext) {
     const { userId, personId, cognitoUsername, passwordHash } = metadata;
     const { email, currentPassword } = data;
@@ -185,11 +159,7 @@ class KycProfileService {
     }
   }
 
-  /**
-   * Actualiza el teléfono del usuario
-   * ✅ OPTIMIZADO: Sin validaciones redundantes
-   */
-  async updatePhone(data, metadata, auditContext) {
+  async updatePhone(data, metadata) {
     const { userId, personId } = metadata;
     const { phone, phone_prefix_id, phone_type } = data;
 
@@ -200,27 +170,14 @@ class KycProfileService {
       await this._checkPhoneNotInUse(phone, personId, phone_type);
 
       const personContact = await personContactRepository.findByPersonId(personId);
-      const oldPhone = phone_type === 'primary' ? personContact.phone_primary : personContact.phone_secondary;
 
       const updateData = this._preparePhoneUpdateData(phone, phone_prefix_id, phone_type);
       await personContact.update(updateData, { transaction });
 
-      await KycSharedUtil.logChange({
-        userId: userId,
-        changedByUserId: userId,
-        changedByRole: 'user',
-        changeType: phone_type === 'primary' ? 'phone_primary' : 'phone_secondary',
-        previousValue: oldPhone,
-        newValue: phone,
-        changeReason: `Teléfono ${phone_type === 'primary' ? 'primario' : 'secundario'} actualizado por cliente`,
-        ipAddress: auditContext.ip,
-        userAgent: auditContext.userAgent,
-      }, { transaction });
-
       await transaction.commit();
 
       logger.info('Phone updated successfully', { userId, phoneType: phone_type });
-      return new UpdatePhoneResponseDTO(phone, phone_prefix_id, new Date(), phone_type);
+      return new UpdatePhoneResponseDTO(phone, phone_prefix_id, phone_type, new Date());
 
     } catch (error) {
       await transaction.rollback();
@@ -229,10 +186,6 @@ class KycProfileService {
     }
   }
 
-  /**
-   * Actualiza la contraseña del usuario
-   * ✅ OPTIMIZADO: Sin validaciones redundantes
-   */
   async updatePassword(data, metadata, auditContext) {
     const { userId, cognitoUsername, passwordHash } = metadata;
     const { currentPassword, newPassword } = data;
@@ -242,16 +195,17 @@ class KycProfileService {
     try {
       await this._validateCurrentPassword(passwordHash, currentPassword);
 
+      await CognitoUtil.changePassword(cognitoUsername, currentPassword, newPassword);
+
       await userRepository.updatePassword(userId, newPassword, { transaction });
-      await CognitoUtil.changeUserPassword(cognitoUsername, newPassword);
 
       await KycSharedUtil.logChange({
         userId: userId,
         changedByUserId: userId,
         changedByRole: 'user',
         changeType: 'password',
-        previousValue: null,
-        newValue: null,
+        previousValue: 'hidden',
+        newValue: 'hidden',
         changeReason: 'Contraseña actualizada por cliente',
         ipAddress: auditContext.ip,
         userAgent: auditContext.userAgent,
@@ -260,21 +214,22 @@ class KycProfileService {
       await transaction.commit();
 
       logger.info('Password updated successfully', { userId });
-      return { message: 'Contraseña actualizada exitosamente' };
+      return null;
 
     } catch (error) {
       await transaction.rollback();
+
+      if (error.name === 'InvalidPasswordException') {
+        throw AppError.badRequest('La contraseña no cumple con los requisitos de seguridad');
+      }
+
       logger.error('Error updating password', { userId, error: error.message });
       throw error;
     }
   }
 
-  /**
-   * Actualiza el national_id del usuario
-   * ✅ OPTIMIZADO: Sin validaciones redundantes, usa kycShared.util
-   */
   async updateNationalId(data, metadata, auditContext) {
-    const { userId, personId, nationalId, passwordHash } = metadata;
+    const { userId, personId, cognitoUsername, passwordHash, nationalId: oldNationalId } = metadata;
     const { newNationalId, currentPassword } = data;
 
     const transaction = await sequelize.transaction();
@@ -282,14 +237,11 @@ class KycProfileService {
     try {
       await this._validateCurrentPassword(passwordHash, currentPassword);
 
-      const user = await userRepository.findById(userId, {
-        include: [{ association: 'role' }, { association: 'person', include: [{ association: 'contact' }] }]
-      });
+      KycSharedUtil.validateNationalIdByRole(newNationalId, metadata.roleId);
 
-      KycSharedUtil.validateNationalIdByRole(newNationalId, user.role);
       await this._validateNationalIdUnique(newNationalId);
 
-      const oldNationalId = nationalId;
+      await CognitoUtil.updateUserAttribute(cognitoUsername, 'custom:national_id', newNationalId);
 
       await personRepository.update(personId, { national_id: newNationalId }, { transaction });
 
@@ -307,75 +259,60 @@ class KycProfileService {
 
       await transaction.commit();
 
-      logger.info('National ID updated successfully', { userId, oldNationalId, newNationalId });
-      return new ChangeNationalIdResponseDto(user, oldNationalId, newNationalId);
+      logger.info('National ID updated successfully', { userId, newNationalId });
+
+      const updatedUser = await userRepository.findById(userId, {
+        include: userRepository.constructor.INCLUDES.basic
+      });
+
+      return new ChangeNationalIdResponseDto(updatedUser, oldNationalId, newNationalId);
 
     } catch (error) {
       await transaction.rollback();
-      logger.error('Error updating national ID', { userId, error: error.message });
+
+      if (error.message?.includes('Cognito')) {
+        logger.error('Cognito error during national_id update', {
+          userId,
+          error: error.message
+        });
+      }
+
+      logger.error('Error updating national_id', { userId, error: error.message });
       throw error;
     }
   }
 
-  /**
-   * Elimina la cuenta del usuario actual
-   * ✅ OPTIMIZADO: Requiere contraseña actual, marca datos como eliminados, elimina de Cognito
-   * Transacción completa: Si Cognito falla, se hace rollback de BD
-   */
   async deleteAccount(data, metadata, auditContext) {
-    const { userId, personId, nationalId, passwordHash, cognitoUsername } = metadata;
+    const { userId, personId, cognitoUsername, passwordHash, nationalId, email } = metadata;
     const { currentPassword } = data;
 
     const transaction = await sequelize.transaction();
 
     try {
-      // 1. Validar contraseña actual
       await this._validateCurrentPassword(passwordHash, currentPassword);
 
-      // 2. Obtener información completa del usuario antes de eliminar
       const user = await userRepository.findById(userId, {
-        include: [
-          { association: 'person', include: [{ association: 'contact' }] }
-        ],
-        transaction
+        include: userRepository.constructor.INCLUDES.basic
       });
 
       if (!user) {
         throw AppError.notFound('Usuario no encontrado');
       }
 
-      // Verificar que existan las asociaciones necesarias
-      if (!user.person) {
-        throw AppError.badRequest('Datos de persona no encontrados');
-      }
-
-      if (!user.person.contact) {
-        throw AppError.badRequest('Datos de contacto no encontrados');
-      }
-
-      console.log('Eliminando usuario:', user);
-
-      const personContact = user.person.contact;
-      const email = personContact.email;
-      const firstName = user.person.first_name;
-
-      // Preparar timestamp para marcar datos eliminados
-      const eliminatedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      
-      // 3. Actualizar national_id en tabla person
+      const firstName = user.person?.first_name || 'Usuario';
+      const eliminatedDate = Date.now();
       const newNationalId = `eliminated_${eliminatedDate}_${nationalId}`;
-      await personRepository.update(personId, {
-        national_id: newNationalId
+
+      await personRepository.update(personId, { national_id: newNationalId }, { transaction });
+
+      await userRepository.update(userId, { 
+        username: `eliminated_${eliminatedDate}_${user.username}`,
+        is_active: false,
+        deleted_at: new Date()
       }, { transaction });
 
-      // 4. Actualizar username y desactivar usuario en tabla user
-      const newUsername = `eliminated_${eliminatedDate}_${user.username}`;
-      await userRepository.update(userId, {
-        username: newUsername,
-        is_active: false
-      }, { transaction });
+      const personContact = await personContactRepository.findByPersonId(personId);
 
-      // 5. Actualizar email y teléfonos en tabla person_contact
       const contactUpdates = {
         email: `eliminated_${eliminatedDate}_${email}`,
       };
@@ -390,7 +327,6 @@ class KycProfileService {
 
       await personContactRepository.update(personContact.person_contact_id, contactUpdates, { transaction });
 
-      // 6. Registrar cambio en auditoría
       await KycSharedUtil.logChange({
         userId: userId,
         changedByUserId: userId,
@@ -403,15 +339,11 @@ class KycProfileService {
         userAgent: auditContext.userAgent,
       }, { transaction });
 
-      // 7. Eliminar de Cognito ANTES del commit
-      // Si esto falla, CognitoUtil lanza AppError y se ejecuta rollback automático
       await CognitoUtil.deleteUser(cognitoUsername);
       logger.info('User deleted from Cognito successfully', { userId, cognitoUsername });
 
-      // 8. SOLO si Cognito fue exitoso, hacer commit
       await transaction.commit();
 
-      // 9. Enviar email de confirmación (asíncrono, no bloquea respuesta)
       if (email) {
         setImmediate(() => {
           this._sendAccountDeletionEmail(email, firstName)
@@ -427,10 +359,9 @@ class KycProfileService {
         nationalId: newNationalId 
       });
 
-      return new DeleteAccountResponseDto(user, new Date());
+      return null;
 
     } catch (error) {
-      // Rollback si la transacción aún está activa
       if (!transaction.finished) {
         await transaction.rollback();
         logger.info('Database transaction rolled back', { userId });
@@ -444,8 +375,6 @@ class KycProfileService {
       throw error;
     }
   }
-
-  // ==================== MÉTODOS PRIVADOS - VALIDACIÓN ====================
 
   async _validateCurrentPassword(passwordHash, currentPassword) {
     const isValid = await userRepository.verifyPassword(currentPassword, passwordHash);
@@ -510,8 +439,6 @@ class KycProfileService {
     }
   }
 
-  // ==================== MÉTODOS PRIVADOS - ACTUALIZACIÓN ====================
-
   async _updateUsername(userId, newUsername, transaction) {
     const existingUser = await userRepository.findByUsername(newUsername);
     if (existingUser && existingUser.user_id !== userId) {
@@ -546,12 +473,6 @@ class KycProfileService {
     }
   }
 
-  // ==================== MÉTODOS PRIVADOS - UTILIDADES ====================
-
-  /**
-   * Envía email de confirmación de eliminación de cuenta
-   * @private
-   */
   async _sendAccountDeletionEmail(email, firstName) {
     const asunto = 'Cuenta Eliminada - Democracia Líquida';
     

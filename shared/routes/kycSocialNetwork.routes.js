@@ -9,9 +9,8 @@ const SessionMiddleware = require('../middlewares/session.middleware');
 const RequestLockMiddleware = require('../middlewares/requestLock.middleware');
 const ValidatorUtil = require('../utils/validators.util');
 
-
 /**
- * @route   GET /kyc-social-network/networks
+ * @route   GET /<admin>o<client>/api/kyc/social-networks
  * @desc    Get all user social networks
  * @access  Protected
  */
@@ -24,7 +23,7 @@ router.get(
 );
 
 /**
- * @route   POST /kyc-social-network/network
+ * @route   POST /<admin>o<client>/api/kyc/social-networks
  * @desc    Add a new social network to user profile
  * @access  Protected
  */
@@ -39,7 +38,7 @@ router.post(
 );
 
 /**
- * @route   PUT /kyc-social-network/network
+ * @route   PUT /<admin>o<client>/api/kyc/social-networks
  * @desc    Update an existing social network
  * @access  Protected
  */
@@ -54,7 +53,7 @@ router.put(
 );
 
 /**
- * @route   DELETE /kyc-social-network/network
+ * @route   DELETE /<admin>o<client>/api/kyc/social-networks
  * @desc    Delete a social network from user profile
  * @access  Protected
  */

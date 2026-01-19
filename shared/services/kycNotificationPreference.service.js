@@ -15,13 +15,11 @@ class KycNotificationPreferenceService {
     const { userId } = metadata;
 
     try {
-
       const preferences = await userNotificationPreferenceRepository.findAllByUser(userId);
 
       logger.info('Notification preferences retrieved', { userId, count: preferences.length });
 
       return new NotificationPreferenceListDTO(preferences);
-
     } catch (error) {
       logger.error('Error retrieving notification preferences', { userId, error: error.message });
       throw error;
@@ -31,7 +29,6 @@ class KycNotificationPreferenceService {
   /**
    * Actualiza la preferencia global de notificaciones
    * La preferencia global es aquella donde notification_type_code = null
-   * ✅ CORREGIDO: Ahora usa transacción para operación única
    */
   async updateGlobalPreference(data, metadata) {
     const { userId } = metadata;
@@ -40,7 +37,6 @@ class KycNotificationPreferenceService {
     const transaction = await sequelize.transaction();
 
     try {
-      // Construir objeto solo con los campos que realmente vienen en data
       const updateData = {};
       
       if (allow_push !== undefined) {
@@ -73,7 +69,6 @@ class KycNotificationPreferenceService {
       });
 
       return new UpdateGlobalPreferenceResponseDTO(preference);
-
     } catch (error) {
       await transaction.rollback();
       logger.error('Error updating global notification preference', { 
@@ -86,7 +81,6 @@ class KycNotificationPreferenceService {
 
   /**
    * Crea o actualiza una preferencia específica para un tipo de notificación
-   * ✅ CORREGIDO: Ahora usa transacción
    */
   async updateTypePreference(data, metadata) {
     const { userId } = metadata;
@@ -99,7 +93,6 @@ class KycNotificationPreferenceService {
     const transaction = await sequelize.transaction();
 
     try {
-
       const preference = await userNotificationPreferenceRepository.upsertTypePreference(
         userId,
         notification_type_code,
@@ -118,7 +111,6 @@ class KycNotificationPreferenceService {
       });
 
       return new UpdateTypePreferenceResponseDTO(preference);
-
     } catch (error) {
       await transaction.rollback();
       logger.error('Error updating type notification preference', { 
@@ -144,7 +136,6 @@ class KycNotificationPreferenceService {
     const transaction = await sequelize.transaction();
 
     try {
-
       const deleted = await userNotificationPreferenceRepository.deleteTypePreference(
         userId,
         notification_type_code,
@@ -161,11 +152,6 @@ class KycNotificationPreferenceService {
         userId, 
         notificationTypeCode: notification_type_code 
       });
-
-      return {
-        timestamp: new Date()
-      };
-
     } catch (error) {
       await transaction.rollback();
       logger.error('Error deleting type notification preference', { 
@@ -180,7 +166,6 @@ class KycNotificationPreferenceService {
   /**
    * Actualiza múltiples preferencias de tipo en batch
    * Útil para configurar varias preferencias a la vez
-   * ✅ CORREGIDO: Ahora usa transacción para operaciones atómicas
    */
   async batchUpdateTypePreferences(data, metadata) {
     const { userId } = metadata;
@@ -193,14 +178,13 @@ class KycNotificationPreferenceService {
     const transaction = await sequelize.transaction();
 
     try {
-
       const results = [];
 
       for (const pref of preferences) {
         const { notification_type_code, allow_push, allow_email } = pref;
 
         if (!notification_type_code) {
-          continue; // Saltar preferencias sin código
+          continue;
         }
 
         const preference = await userNotificationPreferenceRepository.upsertTypePreference(
@@ -224,7 +208,6 @@ class KycNotificationPreferenceService {
       });
 
       return new BatchUpdateResponseDTO(results);
-
     } catch (error) {
       await transaction.rollback();
       logger.error('Error batch updating notification preferences', { 
