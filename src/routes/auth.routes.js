@@ -87,4 +87,23 @@ router.delete(
   ErrorMiddleware.asyncHandler(authController.logoutAllSessions.bind(authController))
 );
 
+router.get(
+  '/test-ratelimit',
+  RateLimitMiddleware.authLimiter(),
+  (req, res) => {
+    const allHeaders = res.getHeaders();
+
+    res.json({
+      message: 'Request passed',
+      ip: req.ip,
+      rateLimit: {
+        limit: allHeaders['ratelimit-limit'] ?? 'N/A',
+        remaining: allHeaders['ratelimit-remaining'] ?? 'N/A',
+        reset: allHeaders['ratelimit-reset'] ?? 'N/A'
+      }
+    });
+  }
+);
+
+
 module.exports = router;

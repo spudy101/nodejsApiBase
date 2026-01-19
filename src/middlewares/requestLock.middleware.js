@@ -1,5 +1,6 @@
 // src/middleware/requestLock.middleware.js
 const redisClient = require('../utils/redis');
+const localCache = require('../utils/cache'); // 🔥 NUEVO
 const { REDIS_KEYS, REDIS_TTL, REQUEST_LOCK } = require('../constants');
 const { ERRORS } = require('../constants/messages');
 const ApiResponse = require('../utils/response');
@@ -8,17 +9,19 @@ const EncryptionUtil = require('../utils/encryption');
 
 class RequestLockMiddleware {
   /**
+   * 🔥 Get cache (Redis o LocalCache)
+   */
+  static getCache() {
+    return redisClient.isAvailable() ? redisClient : localCache;
+  }
+
+  /**
    * Prevent duplicate requests
    */
   static async preventDuplicates(req, res, next) {
     // Only lock write operations
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       return next();
-    }
-
-    const redis = redisClient.getClient();
-    if (!redis) {
-      return next(); // Skip if Redis is not available
     }
 
     try {
@@ -68,18 +71,32 @@ class RequestLockMiddleware {
   }
 
   /**
-   * Acquire lock
+   * Acquire lock (compatible Redis/LocalCache)
    */
   static async acquireLock(key) {
     try {
-      const result = await redisClient.getClient().set(
-        key,
-        'locked',
-        'EX',
-        REDIS_TTL.REQUEST_LOCK,
-        'NX'
-      );
-      return result === 'OK';
+      const cache = this.getCache();
+      
+      if (redisClient.isAvailable()) {
+        // Redis: usa SET NX (atomic)
+        const result = await redisClient.getClient().set(
+          key,
+          'locked',
+          'EX',
+          REDIS_TTL.REQUEST_LOCK,
+          'NX'
+        );
+        return result === 'OK';
+      } else {
+        // LocalCache: simula comportamiento NX
+        const exists = cache.exists(key);
+        if (exists) {
+          return false; // Ya existe = no adquirido
+        }
+        
+        cache.set(key, 'locked', REDIS_TTL.REQUEST_LOCK);
+        return true;
+      }
     } catch (error) {
       logger.error('Error acquiring lock', { error: error.message });
       return false;
@@ -91,7 +108,7 @@ class RequestLockMiddleware {
    */
   static async releaseLock(key) {
     try {
-      await redisClient.del(key);
+      await this.getCache().del(key);
     } catch (error) {
       logger.error('Error releasing lock', { error: error.message });
     }

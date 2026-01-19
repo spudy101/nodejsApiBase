@@ -6,14 +6,16 @@ const ApiResponse = require('../utils/response');
 const { RATE_LIMIT, REDIS_KEYS } = require('../constants');
 const { ERRORS } = require('../constants/messages');
 const { logger } = require('../utils/logger');
-const { ipKeyGenerator } = require('express-rate-limit');
 
 class RateLimitMiddleware {
+  // 🔥 Cache de limiters ya creados
+  static _limiters = {};
+
   /**
    * Create rate limiter with Redis store or memory fallback
    */
   static createLimiter(options = {}) {
-    const defaultOptions = {
+    const config = {
       windowMs: options.windowMs || RATE_LIMIT.WINDOW_MS,
       max: options.max || RATE_LIMIT.MAX_REQUESTS,
       message: options.message || ERRORS.RATE_LIMIT_EXCEEDED,
@@ -22,101 +24,135 @@ class RateLimitMiddleware {
       skipSuccessfulRequests: options.skipSuccessfulRequests || false,
       skipFailedRequests: options.skipFailedRequests || false,
 
-      // ✅ FIX IPv6 + usuarios autenticados
-      keyGenerator: options.keyGenerator || ((req, res) => {
+      keyGenerator: options.keyGenerator || ((req) => {
+        const email = req.body?.email || req.body?.username;
+        if (email && req.path.includes('auth')) {
+          return `email:${email.toLowerCase()}`;
+        }
+
         if (req.user?.id) {
           return `user:${req.user.id}`;
         }
-        return ipKeyGenerator(req, res);
+
+        return `ip:${rateLimit.ipKeyGenerator(req)}`;
       }),
 
       handler: (req, res) => {
-        logger.warn('Rate limit exceeded', {
+        const email = req.body?.email;
+        logger.warn('🚫 Rate limit exceeded', {
           ip: req.ip,
+          email,
           userId: req.user?.id,
           path: req.path
         });
-        return ApiResponse.tooManyRequests(res, ERRORS.RATE_LIMIT_EXCEEDED);
+        return ApiResponse.tooManyRequests(
+          res, 
+          options.message || ERRORS.RATE_LIMIT_EXCEEDED
+        );
       }
     };
 
-    // 🔥 Use Redis store if available, memory otherwise
+    // Try Redis store
     if (redisClient.isAvailable()) {
       try {
-        defaultOptions.store = new RedisStore({
-          client: redisClient.getClient(),
-          prefix: options.prefix || REDIS_KEYS.RATE_LIMIT,
-          sendCommand: (...args) => redisClient.getClient().call(...args),
-        });
-        logger.debug('Rate limiter using Redis store', { prefix: options.prefix });
+        const client = redisClient.getClient();
+        if (client) {
+          config.store = new RedisStore({
+            // @ts-expect-error - Known issue
+            client: client,
+            prefix: options.prefix || REDIS_KEYS.RATE_LIMIT,
+            sendCommand: (...args) => client.sendCommand(args),
+          });
+          logger.info('✅ Rate limiter using Redis store', { 
+            prefix: options.prefix 
+          });
+        }
       } catch (error) {
-        logger.warn('Failed to create Redis store for rate limiter, using memory', {
+        logger.error('❌ Failed to create Redis store', {
           error: error.message
         });
-        // express-rate-limit usará MemoryStore por default
       }
-    } else {
-      if (!redisClient.isAvailable() && !this._memoryLogged) {
-        logger.debug('Rate limiter using memory store (Redis unavailable)');
-        this._memoryLogged = true;
-      }
-      // ⚠️ Sin Redis = rate limit por instancia (no distribuido)
     }
 
-    return rateLimit(defaultOptions);
+    // Log if using memory
+    if (!config.store) {
+      logger.info('📦 Rate limiter using MemoryStore', {
+        prefix: options.prefix,
+        max: config.max
+      });
+    }
+
+    return rateLimit(config);
+  }
+
+  /**
+   * 🔥 NUEVO: Wrapper que crea limiter al primer uso
+   */
+  static _lazyLimiter(key, factory) {
+    return (req, res, next) => {
+      if (!this._limiters[key]) {
+        this._limiters[key] = factory();
+        logger.debug(`Lazy-initialized rate limiter: ${key}`);
+      }
+      this._limiters[key](req, res, next);
+    };
   }
 
   /**
    * General API rate limiter
    */
   static apiLimiter() {
-    return this.createLimiter({
+    return this._lazyLimiter('api', () => this.createLimiter({
       windowMs: RATE_LIMIT.WINDOW_MS,
       max: RATE_LIMIT.MAX_REQUESTS,
       prefix: `${REDIS_KEYS.RATE_LIMIT}api:`
-    });
+    }));
   }
 
   /**
    * Auth endpoints rate limiter (stricter)
    */
   static authLimiter() {
-    return this.createLimiter({
+    return this._lazyLimiter('auth', () => this.createLimiter({
       windowMs: RATE_LIMIT.AUTH_WINDOW_MS,
       max: RATE_LIMIT.AUTH_MAX_REQUESTS,
       skipSuccessfulRequests: false,
+      skipFailedRequests: false,
       prefix: `${REDIS_KEYS.RATE_LIMIT}auth:`,
       message: 'Demasiados intentos de autenticación. Intente más tarde'
-    });
+    }));
   }
 
   /**
    * Create/Update operations limiter
    */
   static writeLimiter() {
-    return this.createLimiter({
-      windowMs: 60 * 1000, // 1 minute
+    return this._lazyLimiter('write', () => this.createLimiter({
+      windowMs: 60 * 1000,
       max: 10,
       prefix: `${REDIS_KEYS.RATE_LIMIT}write:`,
       message: 'Demasiadas operaciones de escritura. Intente más tarde'
-    });
+    }));
   }
 
   /**
    * Per-user rate limiter
    */
   static userLimiter(maxRequests = 100) {
-    return this.createLimiter({
+    const key = `user_${maxRequests}`;
+    return this._lazyLimiter(key, () => this.createLimiter({
       windowMs: RATE_LIMIT.WINDOW_MS,
       max: maxRequests,
       prefix: `${REDIS_KEYS.RATE_LIMIT}user:`,
-      keyGenerator: (req, res) => {
+      keyGenerator: (req) => {
         if (!req.user?.id) {
-          return ipKeyGenerator(req, res);
+          const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+          const normalizedIp = ip.replace(/^::ffff:/, '').replace(/^::1$/, '127.0.0.1');
+          return `ip:${normalizedIp}`;
         }
         return `user:${req.user.id}`;
       }
-    });
+    }));
   }
 }
 

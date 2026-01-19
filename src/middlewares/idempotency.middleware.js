@@ -1,13 +1,18 @@
 // src/middlewares/idempotency.middleware.js
 const redisClient = require('../utils/redis');
+const localCache = require('../utils/cache'); // 🔥 CAMBIO
 const { REDIS_KEYS, REDIS_TTL } = require('../constants');
 const ApiResponse = require('../utils/response');
 const { logger } = require('../utils/logger');
 
-// 🔥 Cache en memoria para fallback
-const memoryCache = new Map();
-
 class IdempotencyMiddleware {
+  /**
+   * 🔥 Get cache (Redis o LocalCache)
+   */
+  static getCache() {
+    return redisClient.isAvailable() ? redisClient : localCache;
+  }
+
   /**
    * Handle idempotent requests
    */
@@ -25,66 +30,51 @@ class IdempotencyMiddleware {
 
     try {
       const fullKey = `${REDIS_KEYS.IDEMPOTENCY}${idempotencyKey}`;
+      const cache = this.getCache();
 
-      if (redisClient.isAvailable()) {
-        // ✅ CON REDIS
-        const cachedResponse = await redisClient.get(fullKey);
+      // 🔥 Check cached response (unified)
+      const cachedData = await cache.get(fullKey);
 
-        if (cachedResponse) {
-          logger.info('Idempotent request - returning cached response (Redis)', {
-            idempotencyKey,
-            path: req.path
-          });
-          return res.status(cachedResponse.statusCode).json(cachedResponse.body);
+      if (cachedData) {
+        let cachedResponse;
+        
+        // Parse data (puede ser string o objeto)
+        try {
+          cachedResponse = typeof cachedData === 'string' 
+            ? JSON.parse(cachedData) 
+            : cachedData;
+        } catch {
+          cachedResponse = cachedData;
         }
 
-        // Override res.json to cache response
-        const originalJson = res.json.bind(res);
-        res.json = function(body) {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            const cacheData = {
-              statusCode: res.statusCode,
-              body
-            };
-            redisClient.set(fullKey, cacheData, REDIS_TTL.IDEMPOTENCY).catch(err => {
-              logger.error('Error caching idempotent response', { error: err.message });
-            });
-          }
-          return originalJson(body);
-        };
+        logger.info('Idempotent request - returning cached response', {
+          idempotencyKey,
+          path: req.path,
+          source: redisClient.isAvailable() ? 'Redis' : 'LocalCache'
+        });
 
-      } else {
-        // ⚠️ SIN REDIS: Fallback en memoria
-        const cached = memoryCache.get(fullKey);
-
-        if (cached && cached.expires > Date.now()) {
-          logger.info('Idempotent request - returning cached response (Memory)', {
-            idempotencyKey,
-            path: req.path
-          });
-          return res.status(cached.statusCode).json(cached.body);
-        }
-
-        // Override res.json
-        const originalJson = res.json.bind(res);
-        res.json = function(body) {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            memoryCache.set(fullKey, {
-              statusCode: res.statusCode,
-              body,
-              expires: Date.now() + (REDIS_TTL.IDEMPOTENCY * 1000)
-            });
-
-            // Cleanup expired entries
-            setTimeout(() => {
-              memoryCache.delete(fullKey);
-            }, REDIS_TTL.IDEMPOTENCY * 1000);
-          }
-          return originalJson(body);
-        };
-
-        logger.debug('Using in-memory idempotency cache', { idempotencyKey });
+        return res.status(cachedResponse.statusCode).json(cachedResponse.body);
       }
+
+      // 🔥 Override res.json to cache response
+      const originalJson = res.json.bind(res);
+      res.json = function(body) {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          const cacheData = {
+            statusCode: res.statusCode,
+            body
+          };
+          
+          cache.set(
+            fullKey, 
+            JSON.stringify(cacheData), 
+            REDIS_TTL.IDEMPOTENCY
+          ).catch(err => {
+            logger.error('Error caching idempotent response', { error: err.message });
+          });
+        }
+        return originalJson(body);
+      };
 
       next();
     } catch (error) {
@@ -99,12 +89,7 @@ class IdempotencyMiddleware {
   static async invalidateKey(idempotencyKey) {
     try {
       const fullKey = `${REDIS_KEYS.IDEMPOTENCY}${idempotencyKey}`;
-
-      if (redisClient.isAvailable()) {
-        await redisClient.del(fullKey);
-      } else {
-        memoryCache.delete(fullKey);
-      }
+      await this.getCache().del(fullKey);
     } catch (error) {
       logger.error('Error invalidating idempotency key', { error: error.message });
     }
