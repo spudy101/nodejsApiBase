@@ -25,7 +25,7 @@ const consoleFormat = winston.format.combine(
 const transports = [
   new winston.transports.Console({
     format: consoleFormat,
-    level: server.nodeEnv === 'production' ? 'info' : 'debug'
+    level: logging.level || 'info' 
   }),
   new DailyRotateFile({
     filename: path.join('logs', 'error-%DATE%.log'),

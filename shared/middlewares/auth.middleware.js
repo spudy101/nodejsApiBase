@@ -287,6 +287,62 @@ class AuthMiddleware {
       });
     }
   };
+
+  /**
+   * Autenticación para webhooks externos usando API Key en query params
+   * Valida contra las API keys configuradas en .env
+   */
+  static externalWebhookAuthenticate = (req, res, next) => {
+    try {
+      // Intentar obtener API key de diferentes formas en query params
+      const apiKey = req.query.apiKey || req.query.api_key || req.query.key;
+      
+      if (!apiKey) {
+        return res.status(401).json({
+          success: false,
+          message: 'API Key requerida en query params'
+        });
+      }
+
+      // ✅ Validar contra las API keys permitidas desde config
+      const validApiKeys = encryption.externalApiKeys
+        ? encryption.externalApiKeys.split(',').map(k => k.trim())
+        : [];
+      
+      if (validApiKeys.length === 0) {
+        logger.error('No external API keys configured in .env');
+        return res.status(500).json({
+          success: false,
+          message: 'Servicio no configurado'
+        });
+      }
+
+      if (!validApiKeys.includes(apiKey)) {
+        logger.warn('Invalid external webhook API key attempt', {
+          ip: req.ip,
+          path: req.path,
+          query: req.query
+        });
+        return res.status(403).json({
+          success: false,
+          message: 'API Key inválida'
+        });
+      }
+
+      // Identificador del servicio externo para logging
+      req.externalService = 'zapsign-webhook';
+      
+      next();
+    } catch (error) {
+      logger.error('Error in external webhook authentication', {
+        error: error.message
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Error en autenticación externa'
+      });
+    }
+  };
 }
 
 module.exports = AuthMiddleware;

@@ -161,7 +161,7 @@ const notificationTypePaths = {
               updateTemplates: {
                 summary: 'Actualizar templates',
                 value: {
-                  title_template: 'Hola {{user_name}}, bienvenido!',
+                  title_template: 'Hola {{nombre}}, bienvenido!',
                   body_template: 'Estamos felices de tenerte con nosotros',
                   supports_push: true
                 }
@@ -171,7 +171,7 @@ const notificationTypePaths = {
                 value: {
                   supports_email: true,
                   email_subject_template: 'Bienvenido a nuestra plataforma',
-                  email_body_template: '<html><body><h1>Bienvenido {{user_name}}</h1><p>Gracias por registrarte</p></body></html>'
+                  email_body_template: '<html><body><h1>Bienvenido {{nombre}}</h1><p>Gracias por registrarte</p></body></html>'
                 }
               }
             }
@@ -203,8 +203,8 @@ const notificationTypePaths = {
   '/admin/api/notification-types/global': {
     post: {
       tags: ['Notification Types - Admin'],
-      summary: 'Crea una notificación global dinámica',
-      description: 'Crea una notificación que será enviada a todos los usuarios activos de la plataforma',
+      summary: 'Crea una notificación global usando NOTIFICACION_GENERAL',
+      description: 'Crea una notificación que será enviada a todos los usuarios activos de la plataforma usando el tipo NOTIFICACION_GENERAL',
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
@@ -214,38 +214,28 @@ const notificationTypePaths = {
               $ref: '#/components/schemas/CreateGlobalNotificationRequest'
             },
             examples: {
-              pushOnly: {
-                summary: 'Solo notificación push',
+              mantenimiento: {
+                summary: 'Notificación de mantenimiento',
                 value: {
-                  title: 'Mantenimiento programado',
-                  body: 'El sistema estará en mantenimiento el día 20 de enero de 2024',
-                  supports_push: true,
-                  supports_email: false,
-                  priority: 'high'
+                  titulo: 'Mantenimiento programado',
+                  contenido: 'El sistema estará en mantenimiento el día 20 de enero de 2024 desde las 00:00 hasta las 06:00 horas.',
+                  asunto: 'Mantenimiento Programado - Sistema'
                 }
               },
-              emailOnly: {
-                summary: 'Solo notificación por email',
+              nuevaFuncionalidad: {
+                summary: 'Nueva funcionalidad',
                 value: {
-                  title: 'Nueva funcionalidad disponible',
-                  body: 'Ahora puedes exportar tus reportes en formato PDF',
-                  supports_push: false,
-                  supports_email: true,
-                  priority: 'normal',
-                  email_subject: 'Nueva funcionalidad: Exportar a PDF',
-                  email_body: '<html><body><h1>Nueva funcionalidad</h1><p>Ahora puedes exportar tus reportes en formato PDF</p></body></html>'
+                  titulo: 'Nueva funcionalidad disponible',
+                  contenido: 'Ahora puedes exportar tus reportes en formato PDF. Accede a la sección de reportes para probarlo.',
+                  asunto: 'Nueva funcionalidad: Exportar a PDF'
                 }
               },
-              both: {
-                summary: 'Push y email',
+              actualizacionTerminos: {
+                summary: 'Actualización de términos',
                 value: {
-                  title: 'Actualización de términos y condiciones',
-                  body: 'Hemos actualizado nuestros términos y condiciones',
-                  supports_push: true,
-                  supports_email: true,
-                  priority: 'high',
-                  email_subject: 'Actualización de términos y condiciones',
-                  email_body: '<html><body><h1>Actualización importante</h1><p>Hemos actualizado nuestros términos y condiciones. Por favor revísalos.</p></body></html>'
+                  titulo: 'Actualización de términos y condiciones',
+                  contenido: 'Hemos actualizado nuestros términos y condiciones. Por favor revísalos en tu próximo inicio de sesión.',
+                  asunto: 'Actualización de términos y condiciones'
                 }
               }
             }

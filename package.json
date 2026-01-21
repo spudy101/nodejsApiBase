@@ -59,6 +59,7 @@
     "@aws-sdk/client-sns": "^3.967.0",
     "amazon-cognito-identity-js": "^6.3.16",
     "aws-jwt-verify": "^5.1.1",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "cors": "^2.8.5",

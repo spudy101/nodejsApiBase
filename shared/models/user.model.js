@@ -100,6 +100,11 @@ module.exports = (sequelize) => {
       foreignKey: 'user_id',
       as: 'login_attempts',
     });
+
+    User.hasMany(models.UserNotificationPreference, {
+      foreignKey: 'user_id',
+      as: 'notificationPreference',
+    });
   };
 
   return User;

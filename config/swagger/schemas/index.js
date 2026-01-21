@@ -6,6 +6,7 @@
 
 const authClientSchemas = require('./authClient.schemas');
 const verificationClientSchemas = require('./verificationClient.schemas');
+const kycZapSignClientSchemas = require('./kycZapSignClient.schemas');
 
 const kycPersonAdminSchemas = require('./kycPersonAdmin.schemas');
 const notificationTypeAdminSchemas = require('./notificationTypeAdmin.schemas');
@@ -27,6 +28,7 @@ const getAllSchemas = () => {
     // Client Schemas
     ...authClientSchemas,
     ...verificationClientSchemas,
+    ...kycZapSignClientSchemas,
 
     // Shared Schemas
     ...authSharedSchemas,

@@ -5,8 +5,8 @@ const personRepository = require('../../../shared/repositories/person.repository
 const personContactRepository = require('../../../shared/repositories/personContact.repository');
 const resetCredentialsRepository = require('../repositories/resetCredentials.repository');
 const userNotificationPreferenceRepository = require('../../../shared/repositories/userNotificationPreference.repository');
+const roleRepository = require('../../../shared/repositories/role.repository');
 const CognitoUtil = require('../../../shared/utils/cognito.util');
-const SESUtil = require('../../../shared/utils/SES.util');
 const NotificationUtil = require('../../../shared/utils/notification.util');
 const AppError = require('../../../shared/utils/appError.util');
 const { logger } = require('../../../shared/utils/logger.util');
@@ -46,7 +46,7 @@ class AuthClientService {
       logger.info('User registered successfully', { userId: user.user_id, email });
 
       setImmediate(() => {
-        this._enviarNotificacion('BIENVENIDA', user.user_id, firstName)
+        this._enviarNotificacion('BIENVENIDA', user.user_id, { nombre: firstName })
           .catch(err => logger.error('Error enviando notificación de bienvenida', {
             error: err.message,
             userId: user.user_id
@@ -92,19 +92,25 @@ class AuthClientService {
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + security.expirationMinutes * 60 * 1000);
-
+    
     await resetCredentialsRepository.create({
       user_id: user.user_id,
       token,
       type,
+      email,
       expires_at: expiresAt,
     });
 
     const resetUrl = `${frontend.resetCredentialUrl}?token=${token}&type=${type}`;
 
     setImmediate(() => {
-      this._sendResetEmail(email, user.person.first_name, resetUrl, type)
-        .catch(err => logger.error('Error sending reset email', { error: err.message }));
+      const tipoNotificacion = type === 'password' ? 'SOLICITUD_RESET_PASSWORD' : 'SOLICITUD_RESET_MFA';
+      this._enviarNotificacion(tipoNotificacion, user.user_id, {
+        nombre: user.person.first_name,
+        resetUrl,
+        minutosExpiracion: security.expirationMinutes
+      })
+        .catch(err => logger.error('Error sending reset notification', { error: err.message }));
     });
 
     logger.info('Reset credentials requested', { userId: user.user_id, type });
@@ -141,16 +147,19 @@ class AuthClientService {
         throw AppError.notFound('Usuario no encontrado');
       }
 
+      let tipoNotificacion;
       if (type === 'password') {
         if (!newPassword) {
           throw AppError.badRequest('La nueva contraseña es requerida');
         }
         await userRepository.updatePassword(user.user_id, newPassword, { transaction });
-        await CognitoUtil.changeUserPassword(user.person.national_id, newPassword);
+        await CognitoUtil.changeUserPassword(user.cognito_username, newPassword);
+        tipoNotificacion = 'RESET_PASSWORD';
         logger.info('Password reset successful', { userId: user.user_id });
       } else if (type === 'mfa') {
-        await CognitoUtil.disableTOTPMFA(user.person.national_id);
+        await CognitoUtil.disableTOTPMFA(user.cognito_username);
         await userRepository.updateTOTPStatus(user.user_id, false, { transaction });
+        tipoNotificacion = 'RESET_MFA';
         logger.info('MFA reset successful', { userId: user.user_id });
       }
 
@@ -158,13 +167,15 @@ class AuthClientService {
 
       await transaction.commit();
 
-      const email = user.person.contact?.email;
-      if (email) {
-        setImmediate(() => {
-          this._sendResetConfirmationEmail(email, user.person.first_name, type)
-            .catch(err => logger.error('Error sending confirmation email', { error: err.message }));
-        });
-      }
+      setImmediate(() => {
+        this._enviarNotificacion(tipoNotificacion, user.user_id, { nombre: user.person.first_name })
+          .catch(err => {
+            logger.error('Error enviando notificación de reset credentials', {
+              error: err.message,
+              userId: user.user_id
+            });
+          });
+      });
 
       return null;
 
@@ -195,7 +206,6 @@ class AuthClientService {
     const transaction = await sequelize.transaction();
 
     try {
-      // Buscar el rol por nombre en lugar de usar un ID fijo
       const defaultRole = await roleRepository.findByName(USER_ROLES.USER, { transaction });
       
       if (!defaultRole) {
@@ -220,7 +230,7 @@ class AuthClientService {
         username: nationalId,
         password,
         person_id: person.person_id,
-        role_id: defaultRole.role_id, // Usar el ID obtenido dinámicamente
+        role_id: defaultRole.role_id,
         cognito_sub: null,
       }, { transaction });
 
@@ -264,66 +274,22 @@ class AuthClientService {
   }
 
   /**
-   * Envía notificación de bienvenida al usuario
+   * Envía notificación usando la centralizadora
    * @private
    */
-  async _enviarNotificacion(tipo, userId, firstName) {
+  async _enviarNotificacion(tipo, userId, metadata) {
     try {
       await NotificationUtil.crearNotificacion({
         tipo_notificacion: tipo,
         user_id: userId,
         related_entity: null,
-        metadata: { nombre: firstName }
+        metadata
       });
 
       logger.info('Notificación enviada', { userId, tipo });
     } catch (error) {
       logger.error('Error al enviar notificación', { error: error.message, userId, tipo });
     }
-  }
-
-  /**
-   * Envía email con enlace para reset de credenciales
-   * @private
-   */
-  async _sendResetEmail(email, firstName, resetUrl, type) {
-    const subject = type === 'password' 
-      ? 'Recuperación de Contraseña'
-      : 'Desactivación de MFA';
-
-    const message = type === 'password'
-      ? `Haz clic en el siguiente enlace para restablecer tu contraseña: ${resetUrl}`
-      : `Haz clic en el siguiente enlace para desactivar tu MFA: ${resetUrl}`;
-
-    const htmlBody = `
-      <h2>Hola ${firstName},</h2>
-      <p>${message}</p>
-      <p>Este enlace expirará en ${security.expirationMinutes} minutos.</p>
-      <p>Si no solicitaste este cambio, ignora este correo.</p>
-    `;
-
-    await SESUtil.enviarEmail(email, subject, htmlBody, message);
-    logger.info('Reset email sent', { email, type });
-  }
-
-  /**
-   * Envía email de confirmación de reset exitoso
-   * @private
-   */
-  async _sendResetConfirmationEmail(email, firstName, type) {
-    const subject = type === 'password' ? 'Contraseña Actualizada' : 'MFA Desactivado';
-    const message = type === 'password'
-      ? 'Tu contraseña ha sido actualizada exitosamente.'
-      : 'Tu autenticación de dos factores ha sido desactivada.';
-
-    const htmlBody = `
-      <h2>Hola ${firstName},</h2>
-      <p>${message}</p>
-      <p>Si no realizaste este cambio, contacta inmediatamente con soporte.</p>
-    `;
-
-    await SESUtil.enviarEmail(email, subject, htmlBody, message);
-    logger.info('Reset confirmation email sent', { email, type });
   }
 }
 

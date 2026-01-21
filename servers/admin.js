@@ -11,7 +11,8 @@ require('dotenv').config();
 // ⚠️ IMPORTANTE: Esto valida ANTES de importar cualquier cosa
 // Si falta alguna variable crítica, el proceso termina aquí
 const { 
-  server 
+  server, 
+  workers 
 } = require('../shared/constants');
 
 // ============================================
@@ -44,10 +45,13 @@ class AdminServer {
       logger.info('Connecting to Redis...');
       await redisClient.connect();
 
-      if (redisClient.isAvailable()) {
-        logger.info('✅ Redis connected');
+      // Start notification workers if enabled
+      if (workers.enabled) {
+        NotificationWorker.iniciar();
+        KycValidationWorker.iniciar();
+        logger.info('✅ workers enabled');
       } else {
-        logger.warn('⚠️  Running WITHOUT Redis (single-instance mode)');
+        logger.info('ℹ️ workers disabled');
       }
 
       // Initialize notification emitter

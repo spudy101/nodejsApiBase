@@ -35,7 +35,7 @@ const kycProfilePaths = {
     put: {
       tags: ['KYC Profile - Shared'],
       summary: 'Actualizar perfil',
-      description: 'Actualiza el perfil del usuario (username, avatar, ubicación)',
+      description: 'Actualiza el perfil del usuario (username, avatar, ubicación, genero)',
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
@@ -53,6 +53,12 @@ const kycProfilePaths = {
                 summary: 'Actualizar solo avatar',
                 value: {
                   avatar_id: '123e4567-e89b-12d3-a456-426614174000'
+                }
+              },
+              updateGender: {
+                summary: 'Actualizar solo genero',
+                value: {
+                  gender_id: '123e4567-e89b-12d3-a456-426614174000'
                 }
               },
               updateLocation: {
@@ -73,6 +79,7 @@ const kycProfilePaths = {
                 value: {
                   username: 'nuevo_usuario123',
                   avatar_id: '123e4567-e89b-12d3-a456-426614174000',
+                  genrder_id: '123e4567-e89b-12d3-a456-426614174000',
                   location: {
                     country_id: '123e4567-e89b-12d3-a456-426614174000',
                     department_id: '123e4567-e89b-12d3-a456-426614174000',

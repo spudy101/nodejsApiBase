@@ -25,6 +25,7 @@ const sharedNotificationRoutes = require('../../shared/routes/notification.route
 // ==========================================
 const clientAuthRoutes = require('./routes/auth.routes');
 const clientSendVerificationRoutes = require('./routes/sendVerification.routes');
+const kycZapSignRoutes = require('./routes/kycZapSign.routes');
 
 class ClientApp {
   constructor() {
@@ -102,6 +103,7 @@ class ClientApp {
     // ==========================================
     this.app.use('/api/auth', clientAuthRoutes);
     this.app.use('/api/verification', clientSendVerificationRoutes);
+    this.app.use('/api/kyc/zapsign', kycZapSignRoutes);
 
     // TODO: Agregar más rutas específicas del cliente aquí
     // Ejemplo: proposals, votes, delegations, etc.

@@ -89,55 +89,54 @@ class NotificationTypeService {
   }
 
   /**
-   * Crea una notificación global dinámica
+   * Crea una notificación global usando NOTIFICACION_GENERAL
+   * @param {Object} data - Datos de la notificación
+   * @param {string} data.titulo - Título de la notificación
+   * @param {string} data.contenido - Contenido/cuerpo de la notificación
+   * @param {string} data.asunto - Asunto del email
    */
   async createGlobalNotification(data) {
     const transaction = await sequelize.transaction();
 
     try {
-      const {
-        title,
-        body,
-        supports_push,
-        supports_email,
-        priority,
-        email_subject,
-        email_body
-      } = data;
+      const { titulo, contenido, asunto } = data;
 
+      // Validar que vengan los campos requeridos
+      if (!titulo || !contenido) {
+        throw AppError.badRequest('titulo y contenido son requeridos');
+      }
+
+      if (!asunto) {
+        throw AppError.badRequest('asunto es requerido para notificaciones por email');
+      }
+
+      // Usar NOTIFICACION_GENERAL con metadata
       const result = await NotificationUtil.crearNotificacion(
         {
-          user_id: null,
-          dynamic_config: {
-            title,
-            body,
-            supports_push,
-            supports_email,
-            priority,
-            email_subject,
-            email_body
-          },
-          metadata: {}
+          tipo_notificacion: 'NOTIFICACION_GENERAL',
+          user_id: null, // null = notificación global
+          related_entity: null,
+          metadata: {
+            titulo,
+            contenido,
+            asunto
+          }
         },
         transaction
       );
 
       await transaction.commit();
 
-      logger.info('Global dynamic notification created successfully', {
+      logger.info('Global notification created successfully', {
         global_notification_id: result.global_notification_id,
-        supports_push,
-        supports_email,
-        priority
+        titulo
       });
 
       return new CreateGlobalNotificationResponseDto({
         global_notification_id: result.global_notification_id,
-        title,
-        body,
-        supports_push,
-        supports_email,
-        priority,
+        titulo,
+        contenido,
+        asunto
       });
 
     } catch (error) {

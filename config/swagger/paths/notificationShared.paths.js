@@ -406,7 +406,7 @@ const notificationPaths = {
 
   '/<admin>o<client>/api/notifications': {
     post: {
-      tags: ['Notifications - External'],
+      tags: ['servicios externos'],
       summary: 'Crear una notificación',
       description: 'Endpoint para crear notificaciones personales o globales. Usado por servicios externos autenticados.',
       security: [{ ExternalAuth: [] }],

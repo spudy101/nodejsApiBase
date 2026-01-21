@@ -138,70 +138,28 @@ class NotificationTypeValidator {
   }
 
   /**
-   * Validación para crear notificación global dinámica
+   * Validación para crear notificación global usando NOTIFICACION_GENERAL
    * POST /admin/api/notification-types/global
    */
   static createGlobalNotification() {
     return [
-      body('title')
-        .notEmpty().withMessage('title es requerido')
-        .isString().withMessage('title debe ser un string')
+      body('titulo')
+        .notEmpty().withMessage('titulo es requerido')
+        .isString().withMessage('titulo debe ser un string')
         .trim()
-        .isLength({ min: 3, max: 255 }).withMessage('title debe tener entre 3 y 255 caracteres'),
+        .isLength({ min: 3, max: 255 }).withMessage('titulo debe tener entre 3 y 255 caracteres'),
 
-      body('body')
-        .notEmpty().withMessage('body es requerido')
-        .isString().withMessage('body debe ser un string')
+      body('contenido')
+        .notEmpty().withMessage('contenido es requerido')
+        .isString().withMessage('contenido debe ser un string')
         .trim()
-        .isLength({ min: 3 }).withMessage('body debe tener al menos 3 caracteres'),
+        .isLength({ min: 3 }).withMessage('contenido debe tener al menos 3 caracteres'),
 
-      body('supports_push')
-        .optional()
-        .isBoolean().withMessage('supports_push debe ser un booleano')
-        .toBoolean(),
-
-      body('supports_email')
-        .optional()
-        .isBoolean().withMessage('supports_email debe ser un booleano')
-        .toBoolean(),
-
-      body('priority')
-        .optional()
-        .isIn(['normal', 'high']).withMessage('priority debe ser "normal" o "high"'),
-
-      body('email_subject')
-        .if(body('supports_email').equals(true))
-        .notEmpty().withMessage('email_subject es requerido cuando supports_email es true')
-        .isString().withMessage('email_subject debe ser un string')
+      body('asunto')
+        .notEmpty().withMessage('asunto es requerido')
+        .isString().withMessage('asunto debe ser un string')
         .trim()
-        .isLength({ min: 3, max: 255 }).withMessage('email_subject debe tener entre 3 y 255 caracteres'),
-
-      body('email_body')
-        .if(body('supports_email').equals(true))
-        .optional()
-        .isString().withMessage('email_body debe ser un string')
-        .trim()
-        .custom((value) => {
-          if (value) {
-            const hasHtmlTags = /<html[\s\S]*<\/html>/i.test(value) || 
-                               /<body[\s\S]*<\/body>/i.test(value) ||
-                               /<div[\s\S]*<\/div>/i.test(value) ||
-                               /<p[\s\S]*<\/p>/i.test(value);
-            
-            if (!hasHtmlTags) {
-              throw new Error('email_body debe contener formato HTML válido (html, body, div o p tags)');
-            }
-          }
-          return true;
-        }),
-
-      body('supports_email')
-        .custom((value, { req }) => {
-          if (value !== true && (req.body.email_subject || req.body.email_body)) {
-            throw new Error('supports_email debe ser true si se proporcionan email_subject o email_body');
-          }
-          return true;
-        })
+        .isLength({ min: 3, max: 255 }).withMessage('asunto debe tener entre 3 y 255 caracteres')
     ];
   }
 }

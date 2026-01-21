@@ -12,7 +12,7 @@ require('dotenv').config();
 // Si falta alguna variable crítica, el proceso termina aquí
 const { 
   server, 
-  notifications 
+  workers 
 } = require('../shared/constants');
 
 // ============================================
@@ -23,6 +23,7 @@ const db = require('../shared/models');
 const redisClient = require('../shared/utils/redis.util');
 const { logger } = require('../shared/utils/logger.util');
 const NotificationWorker = require('../workers/notificationWorker');
+const KycValidationWorker = require('../workers/kycValidation.worker');
 const notificationEmitter = require('../shared/utils/notificationEmitter.util');
 
 // Importar las apps de cada módulo (ya incluyen su propio Swagger)
@@ -117,11 +118,12 @@ class MonolithServer {
       logger.info('✅ Database connection established');
 
       // Start notification workers if enabled
-      if (notifications.enableWorkers) { // ✅ Desde constants
+      if (workers.enabled) {
         NotificationWorker.iniciar();
-        logger.info('✅ Notification workers enabled');
+        KycValidationWorker.iniciar();
+        logger.info('✅ workers enabled');
       } else {
-        logger.info('ℹ️  Notification workers disabled');
+        logger.info('ℹ️ workers disabled');
       }
 
       // Start HTTP server

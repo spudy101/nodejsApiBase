@@ -76,6 +76,15 @@ class UserRepository extends BaseRepository {
     );
   }
 
+  async findByPersonId(personId, includeLevel = 'minimal') {
+    return await this.findOne(
+      { 
+        '$person.person_id$': personId 
+      },
+      { include: UserRepository.INCLUDES[includeLevel] }
+    );
+  }
+
   /**
    * Busca usuarios con paginación, filtros y búsqueda
    * @param {Object} filters - Filtros (isActive, roleId)

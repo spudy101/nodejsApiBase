@@ -8,6 +8,7 @@ const { server } = require('../shared/constants');
 // Importar paths
 const authClientPaths = require('./swagger/paths/authClient.paths');
 const verificationClientPaths = require('./swagger/paths/verificationClient.paths');
+const kycZapSignClientPaths = require('./swagger/paths/kycZapSignClient.paths');
 
 const authSharedPaths = require('./swagger/paths/authShared.paths');
 const coreMaintainersSharedPaths = require('./swagger/paths/coreMaintainersShared.paths');
@@ -97,6 +98,7 @@ Esta API permite a los usuarios:
       // ==========================================
       ...authClientPaths,
       ...verificationClientPaths,
+      ...kycZapSignClientPaths,
       
       // ==========================================
       // RUTAS COMPARTIDAS (usadas por client)
@@ -111,6 +113,10 @@ Esta API permite a los usuarios:
 
     },
     tags: [
+      {
+        name: 'Zapsing - Client',
+        description: 'validacion biometrica especifica para los clientes'
+      },
       {
         name: 'Auth - Client',
         description: '🔐 Autenticación específica de clientes (registro, reset de credenciales)'

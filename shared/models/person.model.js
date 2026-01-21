@@ -89,6 +89,13 @@ module.exports = (sequelize) => {
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE',
     });
+
+    Person.hasMany(models.IdentityValidation, {
+      foreignKey: 'person_id',
+      as: 'identity_validations',
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    });
     
     Person.hasOne(models.User, {
         foreignKey: 'person_id',

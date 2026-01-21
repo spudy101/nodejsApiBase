@@ -16,91 +16,93 @@ const AppError = require('./appError.util');
 class NotificationUtil {
 
     /**
+     * Crea y envía una notificación directa por email sin guardarla en BD
+     * @param {Object} data - Datos de la notificación
+     * @param {string} data.tipo_notificacion - Código del tipo de notificación (requerido)
+     * @param {string} data.email - Email del destinatario (requerido)
+     * @param {Object} [data.metadata] - Datos adicionales para reemplazar en templates
+     */
+    static async crearNotificacionDirecta(data) {
+        try {
+            const {
+                tipo_notificacion,
+                email,
+                metadata = {},
+            } = data;
+
+            // Validaciones
+            if (!tipo_notificacion) {
+                throw AppError.badRequest('tipo_notificacion es requerido');
+            }
+
+            if (!email) {
+                throw AppError.badRequest('email es requerido');
+            }
+
+            // Obtener tipo de notificación de BD
+            const notificationType = await notificationTypeRepo.findByCode(tipo_notificacion);
+            if (!notificationType) {
+                throw AppError.notFound(`Tipo de notificación no encontrado: ${tipo_notificacion}`);
+            }
+
+            // Enviar email directamente
+            await SESUtil.enviarNotificacion(email, notificationType, metadata);
+
+            logger.info('Notificación directa enviada exitosamente', {
+                tipo: tipo_notificacion,
+                email
+            });
+
+            return {
+                estado_solicitud: 1,
+                message: 'Notificación enviada exitosamente por email.'
+            };
+        } catch (error) {
+            logger.error('Error al enviar notificación directa', { 
+                error: error.message, 
+                stack: error.stack 
+            });
+            throw error;
+        }
+    }
+
+    /**
      * Crea y envía una notificación (individual o global)
      * @param {Object} data - Datos de la notificación
-     * @param {string} [data.tipo_notificacion] - Código del tipo (null para dinámicas)
-     * @param {string} data.user_id - ID del usuario (null para globales)
-     * @param {Object} [data.dynamic_config] - Configuración dinámica para notificaciones sin tipo
-     * @param {string} data.dynamic_config.title - Título
-     * @param {string} data.dynamic_config.body - Cuerpo
-     * @param {boolean} data.dynamic_config.supports_push - Soporte push
-     * @param {boolean} data.dynamic_config.supports_email - Soporte email
-     * @param {string} data.dynamic_config.priority - Prioridad (low, medium, high, urgent)
-     * @param {string} [data.dynamic_config.email_subject] - Asunto email
-     * @param {string} [data.dynamic_config.email_body] - Cuerpo email
-     * @param {Object} data.related_entity - Entidad relacionada { type, id }
-     * @param {Object} data.metadata - Datos adicionales para templates
+     * @param {string} data.tipo_notificacion - Código del tipo de notificación (requerido)
+     * @param {string|null} data.user_id - ID del usuario (null para notificaciones globales)
+     * @param {Object} [data.related_entity] - Entidad relacionada { type, id }
+     * @param {Object} [data.metadata] - Datos adicionales para reemplazar en templates
      * @param {Object} transaction - Transacción de Sequelize
      */
     static async crearNotificacion(data, transaction = null) {
         try {
             const {
-                tipo_notificacion = null,
+                tipo_notificacion,
                 user_id = null,
-                dynamic_config = null,
                 related_entity = {},
                 metadata = {},
             } = data;
 
-            let notificationType, title, body, emailSubject, emailBody;
-
-            // ============================================================
-            // MODO DINÁMICO: Sin tipo de notificación predefinido
-            // ============================================================
-            if (dynamic_config) {
-                // Validar configuración dinámica
-                if (!dynamic_config.title || !dynamic_config.body) {
-                    throw AppError.badRequest('Título y cuerpo son requeridos para notificaciones dinámicas');
-                }
-
-                if (!dynamic_config.supports_push && !dynamic_config.supports_email) {
-                    // Solo interna, está OK
-                    logger.debug('Creating internal-only notification');
-                }
-
-                if (dynamic_config.supports_email && !dynamic_config.email_subject) {
-                    throw AppError.badRequest('email_subject es requerido cuando supports_email es true');
-                }
-
-                // Crear objeto temporal como si fuera un notificationType
-                notificationType = {
-                    notification_type_id: null, // No hay ID porque no existe en BD
-                    code: 'DYNAMIC',
-                    name: 'Notificación Dinámica',
-                    supports_push: dynamic_config.supports_push || false,
-                    supports_email: dynamic_config.supports_email || false,
-                    priority: dynamic_config.priority || 'medium',
-                    is_active: true
-                };
-
-                title = dynamic_config.title;
-                body = dynamic_config.body;
-                emailSubject = dynamic_config.email_subject || null;
-                emailBody = dynamic_config.email_body || null;
-
-            } 
-            // ============================================================
-            // MODO TRADICIONAL: Con tipo de notificación de BD
-            // ============================================================
-            else if (tipo_notificacion) {
-                // 1. Obtener tipo de notificación
-                notificationType = await notificationTypeRepo.findByCode(tipo_notificacion);
-                if (!notificationType) {
-                    throw AppError.notFound(`Tipo de notificación no encontrado: ${tipo_notificacion}`);
-                }
-
-                // 2. Generar contenido desde templates
-                const generated = this._generarContenido(notificationType, metadata);
-                title = generated.title;
-                body = generated.body;
-                emailSubject = generated.emailSubject;
-                emailBody = generated.emailBody;
-
-            } else {
-                throw AppError.badRequest('Debe proporcionar tipo_notificacion o dynamic_config');
+            // Validar que venga el tipo de notificación
+            if (!tipo_notificacion) {
+                throw AppError.badRequest('tipo_notificacion es requerido');
             }
 
-            // 3. Crear notificación según el tipo
+            // 1. Obtener tipo de notificación de BD
+            const notificationType = await notificationTypeRepo.findByCode(tipo_notificacion);
+            if (!notificationType) {
+                throw AppError.notFound(`Tipo de notificación no encontrado: ${tipo_notificacion}`);
+            }
+
+            // 2. Generar contenido desde templates usando metadata
+            const generated = this._generarContenido(notificationType, metadata);
+            const title = generated.title;
+            const body = generated.body;
+            const emailSubject = generated.emailSubject;
+            const emailBody = generated.emailBody;
+
+            // 3. Crear notificación según el tipo (individual o global)
             let result;
             if (user_id) {
                 result = await this._crearNotificacionIndividual(
@@ -119,21 +121,19 @@ class NotificationUtil {
                     body,
                     metadata,
                     transaction,
-                    emailSubject,  // ← Pasar email info
-                    emailBody      // ← Pasar email info
+                    emailSubject,
+                    emailBody
                 );
             }
 
             logger.info('Notificación creada exitosamente', {
-                notification_id: result.notification_id,
-                tipo: tipo_notificacion || 'DYNAMIC',
+                notification_id: result.notification_id || result.global_notification_id,
+                tipo: tipo_notificacion,
                 user_id,
-                is_dynamic: !!dynamic_config
+                is_global: !user_id
             });
 
-            // ============================================================
-            // Emitir evento SSE si es notificación individual
-            // ============================================================
+            // 4. Emitir evento SSE si es notificación individual
             if (user_id) {
                 try {
                     const notificationRepo = require('../repositories/notification.repository');

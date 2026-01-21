@@ -23,6 +23,8 @@ const AppError = require('./appError.util');
 const { logger } = require('./logger.util');
 const { cognito, aws } = require('../constants/index');
 
+const USER_POOL_ID = cognito.userPoolId;
+
 class CognitoUtil {
   static poolData = {
     UserPoolId: cognito.userPoolId,
@@ -30,8 +32,6 @@ class CognitoUtil {
   };
 
   static userPool = new CognitoUserPool(this.poolData);
-
-  static USER_POOL_ID = cognito.userPoolId;
 
   static adminClient = new CognitoIdentityProviderClient({
     region: aws.region,

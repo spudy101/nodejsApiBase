@@ -89,6 +89,21 @@ const validateConfig = () => {
     errors.push('COGNITO_CLIENT_ID es requerido');
   }
 
+  // Validar ZapSign (REQUERIDO)
+  const requiredZapSignVars = [
+    'ZAPSIGN_API_KEY',
+    'ZAPSIGN_TEMPLATE_ID',
+    'ZAPSIGN_BASE_URL',
+    'ZAPSIGN_REDIRECT_URL_MOVIL',
+    'ZAPSIGN_REDIRECT_URL_WEB'
+  ];
+  
+  requiredZapSignVars.forEach(varName => {
+    if (!process.env[varName]) {
+      errors.push(`Variable ZapSign requerida: ${varName}`);
+    }
+  });
+
   // Validar Frontend URL
   if (!process.env.FRONTEND_RESET_URL) {
     errors.push('FRONTEND_RESET_URL es requerido');
@@ -197,6 +212,18 @@ const loadConfig = () => {
     },
 
     // ==============================================
+    // ZAPSIGN (REQUERIDO)
+    // ==============================================
+    zapsign: {
+      apiKey: getRequiredEnv('ZAPSIGN_API_KEY'),
+      templateId: getRequiredEnv('ZAPSIGN_TEMPLATE_ID'),
+      baseUrl: getRequiredEnv('ZAPSIGN_BASE_URL'),
+      redirectUrlMovil: getRequiredEnv('ZAPSIGN_REDIRECT_URL_MOVIL'),
+      redirectUrlWeb: getRequiredEnv('ZAPSIGN_REDIRECT_URL_WEB'),
+      validationTimeoutMinutes: parseIntEnv(process.env.ZAPSIGN_VALIDATION_TIMEOUT_MINUTES, 60)
+    },
+
+    // ==============================================
     // FRONTEND URLs
     // ==============================================
     frontend: {
@@ -207,7 +234,6 @@ const loadConfig = () => {
     // NOTIFICATIONS (Opcional - no tira el sistema)
     // ==============================================
     notifications: {
-      enableWorkers: parseBoolEnv(process.env.ENABLE_NOTIFICATION_WORKERS, false),
       sns: {
         platformArnIos: getOptionalEnv('SNS_PLATFORM_ARN_IOS', ''),
         platformArnAndroid: getOptionalEnv('SNS_PLATFORM_ARN_ANDROID', '')
@@ -216,6 +242,13 @@ const loadConfig = () => {
         fromEmail: getOptionalEnv('SES_FROM_EMAIL', ''),
         logoUrl: getOptionalEnv('LOGO_URL', '')
       }
+    },
+
+    // ==============================================
+    // WORKERS (General para todos los workers)
+    // ==============================================
+    workers: {
+      enabled: parseBoolEnv(process.env.ENABLE_WORKERS, true)
     },
 
     // ==============================================

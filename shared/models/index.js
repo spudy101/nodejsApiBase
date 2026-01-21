@@ -33,6 +33,8 @@ db.UserPushToken = require('./userPushToken.model')(sequelize);
 db.ResetCredentials = require('./resetCredentials.model')(sequelize);
 db.UserChangeLog = require('./userChangeLog.model')(sequelize);
 
+db.IdentityValidation = require('../../modules/client/models/identityValidation.model')(sequelize);
+
 // Configurar asociaciones
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {

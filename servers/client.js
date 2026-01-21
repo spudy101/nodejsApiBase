@@ -12,7 +12,7 @@ require('dotenv').config();
 // Si falta alguna variable crítica, el proceso termina aquí
 const { 
   server, 
-  notifications 
+  workers 
 } = require('../shared/constants');
 
 // ============================================
@@ -62,11 +62,12 @@ class ClientServer {
       logger.info('✅ Database connection established');
 
       // Start notification workers if enabled
-      if (notifications.enableWorkers) { // ✅ Desde constants
+      if (workers.enabled) {
         NotificationWorker.iniciar();
-        logger.info('✅ Notification workers enabled');
+        KycValidationWorker.iniciar();
+        logger.info('✅ workers enabled');
       } else {
-        logger.info('ℹ️  Notification workers disabled');
+        logger.info('ℹ️ workers disabled');
       }
 
       // Start HTTP server

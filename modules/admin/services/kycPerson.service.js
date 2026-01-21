@@ -7,7 +7,7 @@ const personContactRepository = require('../../../shared/repositories/personCont
 const roleRepository = require('../../../shared/repositories/role.repository');
 const CognitoUtil = require('../../../shared/utils/cognito.util');
 const KycSharedUtil = require('../../../shared/utils/kycShared.util');
-const EmailUtil = require('../utils/email.util');
+const NotificationUtil = require('../../../shared/utils/notification.util');
 const AppError = require('../../../shared/utils/appError.util');
 const { logger } = require('../../../shared/utils/logger.util');
 const PaginationHelper = require('../../../shared/utils/paginationHelper.util');
@@ -155,7 +155,11 @@ class KycPersonService {
       await transaction.commit();
 
       setImmediate(() => {
-        EmailUtil.sendWelcomeEmail(userData.email, userData.firstName, temporaryPassword)
+        this._enviarNotificacion('USUARIO_CREADO_ADMIN', user.user_id, {
+          nombre: userData.firstName,
+          email: userData.email,
+          passwordTemporal: temporaryPassword
+        })
           .catch(err => logger.error('Error sending welcome email', { error: err.message }));
       });
 
@@ -289,7 +293,10 @@ class KycPersonService {
       const firstName = user.person.first_name;
 
       setImmediate(() => {
-        EmailUtil.sendPasswordResetEmail(email, firstName, temporaryPassword)
+        this._enviarNotificacion('PASSWORD_RESET_ADMIN', user.user_id, {
+          nombre: firstName,
+          passwordTemporal: temporaryPassword
+        })
           .catch(err => logger.error('Error sending password reset email', { error: err.message }));
       });
 
@@ -364,10 +371,19 @@ class KycPersonService {
       await CognitoUtil.updateEmail(user.cognito_username, newEmail);
 
       setImmediate(() => {
-        EmailUtil.sendEmailChangeNotification(oldEmail, user.person.first_name, newEmail)
+        // Notificación al email antiguo
+        this._enviarNotificacionDirecta('EMAIL_CAMBIADO_NOTIFICACION', oldEmail, {
+          nombre: user.person.first_name,
+          emailAntiguo: oldEmail,
+          emailNuevo: newEmail
+        })
           .catch(err => logger.error('Error sending email change notification', { error: err.message }));
         
-        EmailUtil.sendEmailChangeConfirmation(newEmail, user.person.first_name)
+        // Confirmación al email nuevo
+        this._enviarNotificacion('EMAIL_CAMBIADO_CONFIRMACION', user.user_id, {
+          nombre: user.person.first_name,
+          emailNuevo: newEmail
+        })
           .catch(err => logger.error('Error sending email change confirmation', { error: err.message }));
       });
 
@@ -449,7 +465,11 @@ class KycPersonService {
       const email = user.person.contact?.email;
       if (email) {
         setImmediate(() => {
-          EmailUtil.sendNationalIdChangedEmail(email, user.person.first_name, oldNationalId, newNationalId)
+          this._enviarNotificacion('NATIONAL_ID_CAMBIADO', user.user_id, {
+            nombre: user.person.first_name,
+            nationalIdAntiguo: oldNationalId,
+            nationalIdNuevo: newNationalId
+          })
             .catch(err => logger.error('Error sending national_id change email', { error: err.message }));
         });
       }
@@ -525,7 +545,9 @@ class KycPersonService {
       const email = user.person.contact?.email;
       if (email) {
         setImmediate(() => {
-          EmailUtil.sendMFADisabledEmail(email, user.person.first_name)
+          this._enviarNotificacion('TOTP_ELIMINADO', user.user_id, {
+            nombre: user.person.first_name
+          })
             .catch(err => logger.error('Error sending MFA disabled email', { error: err.message }));
         });
       }
@@ -697,7 +719,9 @@ class KycPersonService {
       // 9. Enviar email de notificación
       if (email) {
         setImmediate(() => {
-          EmailUtil.sendAccountDeletionEmail(email, firstName)
+          this._enviarNotificacionDirecta('CUENTA_ELIMINADA', email, {
+            nombre: firstName
+          })
             .catch(err => logger.error('Error sending account deletion email', { 
               userId,
               error: err.message 
@@ -729,6 +753,46 @@ class KycPersonService {
         stack: error.stack 
       });
       throw error;
+    }
+  }
+
+  // ==================== MÉTODOS PRIVADOS ====================
+
+  /**
+   * Envía notificación usando la centralizadora
+   * @private
+   */
+  async _enviarNotificacion(tipo, userId, metadata) {
+    try {
+      await NotificationUtil.crearNotificacion({
+        tipo_notificacion: tipo,
+        user_id: userId,
+        related_entity: null,
+        metadata
+      });
+
+      logger.info('Notificación enviada', { userId, tipo });
+    } catch (error) {
+      logger.error('Error al enviar notificación', { error: error.message, userId, tipo });
+    }
+  }
+
+  /**
+   * Envía notificación directa a un email (sin user_id)
+   * Usado cuando el email ya no pertenece al usuario (ej: cambio de email)
+   * @private
+   */
+  async _enviarNotificacionDirecta(tipo, email, metadata) {
+    try {
+      await NotificationUtil.crearNotificacionDirecta({
+        tipo_notificacion: tipo,
+        email,
+        metadata
+      });
+
+      logger.info('Notificación directa enviada', { email, tipo });
+    } catch (error) {
+      logger.error('Error al enviar notificación directa', { error: error.message, email, tipo });
     }
   }
 }

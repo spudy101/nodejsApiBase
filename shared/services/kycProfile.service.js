@@ -13,10 +13,11 @@ const {
 const personContactRepository = require('../repositories/personContact.repository');
 const personLocationRepository = require('../repositories/personLocation.repository');
 const avatarRepository = require('../repositories/avatar.repository');
+const genderRepository = require('../repositories/gender.repository');
 const personRepository = require('../repositories/person.repository');
 const verificationCodeRepository = require('../repositories/verificationCode.repository');
 const CognitoUtil = require('../utils/cognito.util');
-const SESUtil = require('../utils/SES.util');
+const NotificationUtil = require('../utils/notification.util');
 const KycSharedUtil = require('../utils/kycShared.util');
 const AppError = require('../utils/appError.util');
 const { logger } = require('../utils/logger.util');
@@ -77,7 +78,7 @@ class KycProfileService {
   }
 
   async updateProfile(data, metadata) {
-    const { userId, personId, username } = metadata;
+    const { userId, personId, username, gender_id } = metadata;
     const transaction = await sequelize.transaction();
 
     try {
@@ -87,6 +88,10 @@ class KycProfileService {
 
       if (data.avatar_id) {
         await this._updateAvatar(userId, data.avatar_id, transaction);
+      }
+
+      if (data.gender_id) {
+        await this._updateGender(personId, data.gender_id, transaction);
       }
 
       if (data.location) {
@@ -283,97 +288,101 @@ class KycProfileService {
   }
 
   async deleteAccount(data, metadata, auditContext) {
-    const { userId, personId, cognitoUsername, passwordHash, nationalId, email } = metadata;
-    const { currentPassword } = data;
+      const { userId, personId, cognitoUsername, passwordHash, nationalId, email } = metadata;
+      const { currentPassword } = data;
 
-    const transaction = await sequelize.transaction();
+      const transaction = await sequelize.transaction();
 
-    try {
-      await this._validateCurrentPassword(passwordHash, currentPassword);
+      try {
+        await this._validateCurrentPassword(passwordHash, currentPassword);
 
-      const user = await userRepository.findById(userId, {
-        include: userRepository.constructor.INCLUDES.basic
-      });
-
-      if (!user) {
-        throw AppError.notFound('Usuario no encontrado');
-      }
-
-      const firstName = user.person?.first_name || 'Usuario';
-      const eliminatedDate = Date.now();
-      const newNationalId = `eliminated_${eliminatedDate}_${nationalId}`;
-
-      await personRepository.update(personId, { national_id: newNationalId }, { transaction });
-
-      await userRepository.update(userId, { 
-        username: `eliminated_${eliminatedDate}_${user.username}`,
-        is_active: false,
-        deleted_at: new Date()
-      }, { transaction });
-
-      const personContact = await personContactRepository.findByPersonId(personId);
-
-      const contactUpdates = {
-        email: `eliminated_${eliminatedDate}_${email}`,
-      };
-
-      if (personContact.phone_primary) {
-        contactUpdates.phone_primary = `eliminated_${eliminatedDate}_${personContact.phone_primary}`;
-      }
-
-      if (personContact.phone_secondary) {
-        contactUpdates.phone_secondary = `eliminated_${eliminatedDate}_${personContact.phone_secondary}`;
-      }
-
-      await personContactRepository.update(personContact.person_contact_id, contactUpdates, { transaction });
-
-      await KycSharedUtil.logChange({
-        userId: userId,
-        changedByUserId: userId,
-        changedByRole: 'user',
-        changeType: 'account_status',
-        previousValue: 'active',
-        newValue: 'eliminated',
-        changeReason: 'Cuenta eliminada por el usuario',
-        ipAddress: auditContext.ip,
-        userAgent: auditContext.userAgent,
-      }, { transaction });
-
-      await CognitoUtil.deleteUser(cognitoUsername);
-      logger.info('User deleted from Cognito successfully', { userId, cognitoUsername });
-
-      await transaction.commit();
-
-      if (email) {
-        setImmediate(() => {
-          this._sendAccountDeletionEmail(email, firstName)
-            .catch(err => logger.error('Error sending account deletion email', { 
-              userId,
-              error: err.message 
-            }));
+        const user = await userRepository.findById(userId, {
+          include: userRepository.constructor.INCLUDES.basic
         });
+
+        if (!user) {
+          throw AppError.notFound('Usuario no encontrado');
+        }
+
+        const firstName = user.person?.first_name || 'Usuario';
+        const eliminatedDate = Date.now();
+        const newNationalId = `eliminated_${eliminatedDate}_${nationalId}`;
+
+        await personRepository.update(personId, { national_id: newNationalId }, { transaction });
+
+        await userRepository.update(userId, { 
+          username: `eliminated_${eliminatedDate}_${user.username}`,
+          is_active: false,
+          deleted_at: new Date()
+        }, { transaction });
+
+        const personContact = await personContactRepository.findByPersonId(personId);
+
+        const contactUpdates = {
+          email: `eliminated_${eliminatedDate}_${email}`,
+        };
+
+        if (personContact.phone_primary) {
+          contactUpdates.phone_primary = `eliminated_${eliminatedDate}_${personContact.phone_primary}`;
+        }
+
+        if (personContact.phone_secondary) {
+          contactUpdates.phone_secondary = `eliminated_${eliminatedDate}_${personContact.phone_secondary}`;
+        }
+
+        await personContactRepository.update(personContact.person_contact_id, contactUpdates, { transaction });
+
+        await KycSharedUtil.logChange({
+          userId: userId,
+          changedByUserId: userId,
+          changedByRole: 'user',
+          changeType: 'account_status',
+          previousValue: 'active',
+          newValue: 'eliminated',
+          changeReason: 'Cuenta eliminada por el usuario',
+          ipAddress: auditContext.ip,
+          userAgent: auditContext.userAgent,
+        }, { transaction });
+
+        await CognitoUtil.deleteUser(cognitoUsername);
+        logger.info('User deleted from Cognito successfully', { userId, cognitoUsername });
+
+        await transaction.commit();
+
+        if (email) {
+          setImmediate(() => {
+            NotificationUtil.crearNotificacionDirecta({
+              tipo_notificacion: 'CUENTA_ELIMINADA',
+              email,
+              metadata: { nombre: firstName }
+            })
+              .catch(err => logger.error('Error sending account deletion email', { 
+                userId,
+                error: err.message 
+              }));
+          });
+        }
+
+        logger.info('Account deleted successfully', { 
+          userId, 
+          nationalId: newNationalId 
+        });
+
+        return null;
+
+      } catch (error) {
+        if (!transaction.finished) {
+          await transaction.rollback();
+          logger.info('Database transaction rolled back', { userId });
+        }
+
+        logger.error('Error deleting account', { 
+          userId, 
+          error: error.message,
+          stack: error.stack 
+        });
+        throw error;
       }
-
-      logger.info('Account deleted successfully', { 
-        userId, 
-        nationalId: newNationalId 
-      });
-
-      return null;
-
-    } catch (error) {
-      if (!transaction.finished) {
-        await transaction.rollback();
-        logger.info('Database transaction rolled back', { userId });
-      }
-
-      logger.error('Error deleting account', { 
-        userId, 
-        error: error.message,
-        stack: error.stack 
-      });
-      throw error;
-    }
   }
 
   async _validateCurrentPassword(passwordHash, currentPassword) {
@@ -439,6 +448,18 @@ class KycProfileService {
     }
   }
 
+  async _validateGenderExists(genderId) {
+    const gender = await genderRepository.findById(genderId);
+
+    if (!gender) {
+      throw AppError.notFound('Gender no encontrado');
+    }
+
+    if (!gender.is_active) {
+      throw AppError.badRequest('Gender no disponible');
+    }
+  }
+
   async _updateUsername(userId, newUsername, transaction) {
     const existingUser = await userRepository.findByUsername(newUsername);
     if (existingUser && existingUser.user_id !== userId) {
@@ -451,6 +472,11 @@ class KycProfileService {
   async _updateAvatar(userId, avatarId, transaction) {
     await this._validateAvatarExists(avatarId);
     await userRepository.update(userId, { avatar_id: avatarId }, { transaction });
+  }
+
+  async _updateGender(personId, genderId, transaction) {
+    await this._validateGenderExists(genderId);
+    await personRepository.update(personId, { gender_id: genderId }, { transaction });
   }
 
   async _updateLocation(personId, locationData, transaction) {
@@ -471,65 +497,6 @@ class KycProfileService {
         phone_secondary_verified_at: new Date()
       };
     }
-  }
-
-  async _sendAccountDeletionEmail(email, firstName) {
-    const asunto = 'Cuenta Eliminada - Democracia Líquida';
-    
-    const cuerpoHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-      </head>
-      <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px;">
-          <h2 style="color: #333;">Hola ${firstName},</h2>
-          
-          <p style="color: #555; line-height: 1.6;">
-            Tu cuenta en Democracia Líquida ha sido eliminada exitosamente según tu solicitud.
-          </p>
-          
-          <div style="background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #004085;">
-              Tu información personal ha sido marcada como eliminada y ya no podrás acceder a tu cuenta.
-            </p>
-          </div>
-          
-          <p style="color: #555; line-height: 1.6;">
-            Si cambiaste de opinión o eliminaste tu cuenta por error, por favor contacta a nuestro equipo de soporte lo antes posible.
-          </p>
-          
-          <p style="color: #555; line-height: 1.6;">
-            Esperamos verte pronto nuevamente en nuestra plataforma.
-          </p>
-          
-          <p style="color: #555; margin-top: 30px;">
-            Saludos,<br>
-            <strong>Equipo de Democracia Líquida</strong>
-          </p>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    const cuerpoTexto = `
-      Hola ${firstName},
-
-      Tu cuenta en Democracia Líquida ha sido eliminada exitosamente según tu solicitud.
-
-      Tu información personal ha sido marcada como eliminada y ya no podrás acceder a tu cuenta.
-
-      Si cambiaste de opinión o eliminaste tu cuenta por error, por favor contacta a nuestro equipo de soporte lo antes posible.
-
-      Esperamos verte pronto nuevamente en nuestra plataforma.
-
-      Saludos,
-      Equipo de Democracia Líquida
-    `;
-
-    await SESUtil.enviarEmail(email, asunto, cuerpoHtml, cuerpoTexto);
-    logger.info('Account deletion email sent', { email });
   }
 }
 

@@ -15,6 +15,7 @@ class KycProfileValidator {
         const allowedFields = [
           'username',
           'avatar_id',
+          'gender_id',
           'location'
         ];
 
@@ -64,6 +65,10 @@ class KycProfileValidator {
       body('avatar_id')
         .optional()
         .isUUID().withMessage('El avatar_id debe ser un UUID válido'),
+
+      body('gender_id')
+        .optional()
+        .isUUID().withMessage('El gender_id debe ser un UUID válido'),
 
       body('location.country_id')
         .optional()

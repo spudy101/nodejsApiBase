@@ -22,6 +22,12 @@ const kycProfileSchemas = {
         example: '123e4567-e89b-12d3-a456-426614174000',
         description: 'ID del avatar seleccionado'
       },
+      gender_id: {
+        type: 'string',
+        format: 'uuid',
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        description: 'ID del genero seleccionado'
+      },
       location: {
         type: 'object',
         required: ['country_id', 'department_id', 'city_id', 'address'],
