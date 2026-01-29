@@ -25,9 +25,12 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.966.0",
     "aws-jwt-verify": "^5.1.1",
     "winston-daily-rotate-file": "^5.0.0",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
+    "bcryptjs": "^3.0.3"
   },
   "devDependencies": {
     "jest": "^29.7.0"
-  }
+  },
+  "author": "Abundbank Team",
+  "license": "MIT"
 }

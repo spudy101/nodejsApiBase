@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 const redisClient = require('../utils/redis.util');
 const ApiResponse = require('../utils/response.util');
 const { logger } = require('../utils/logger.util');
-const { rateLimit: rateLimitConfig } = require('../constants');
+// const { rateLimit: rateLimitConfig } = require('../constants');
 
 /**
  * Store híbrido simplificado: Redis con fallback a memoria
@@ -116,6 +116,20 @@ class HybridStore {
 }
 
 /**
+ * Helper para obtener IP del request
+ */
+const getClientIp = (req) => {
+  return (
+    req.ip ||
+    req.headers['x-forwarded-for']?.split(',')[0].trim() ||
+    req.headers['x-real-ip'] ||
+    req.socket?.remoteAddress ||
+    req.connection?.remoteAddress ||
+    'unknown-ip'
+  );
+};
+
+/**
  * Rate limiter para endpoints públicos y autenticación
  */
 class RateLimitMiddleware {
@@ -125,15 +139,18 @@ class RateLimitMiddleware {
    */
   static publicLimiter() {
     return rateLimit({
-      windowMs: rateLimitConfig.windowMs,
-      max: rateLimitConfig.maxRequests,
+      windowMs: 900000,
+      max: 100,
       standardHeaders: true,
       legacyHeaders: false,
-      store: new HybridStore('rl:public:', rateLimitConfig.windowMs),
+      store: new HybridStore('rl:public:', 900000),
+      
+      // ✅ KeyGenerator explícito
+      keyGenerator: (req) => getClientIp(req),
       
       handler: (req, res) => {
         logger.warn('Rate limit exceeded (public)', {
-          ip: req.ip,
+          ip: getClientIp(req),
           path: req.path,
           usingRedis: redisClient.isAvailable()
         });
@@ -148,27 +165,32 @@ class RateLimitMiddleware {
   /**
    * Rate limiter para endpoints de autenticación (login, register, etc)
    * ✅ Config desde constants
+   * ✅ FIX: keyGenerator sin opt.ipKeyGenerator
    */
   static authLimiter() {
     return rateLimit({
-      windowMs: rateLimitConfig.authWindowMs,
-      max: rateLimitConfig.authMaxRequests,
+      windowMs: 900000,
+      max: 10,
       standardHeaders: true,
       legacyHeaders: false,
       skipSuccessfulRequests: false,
-      store: new HybridStore('rl:auth:', rateLimitConfig.authWindowMs),
+      store: new HybridStore('rl:auth:', 900000),
       
-      keyGenerator: (req, opt) => {
+      keyGenerator: (req) => {
+        // Intentar usar email/username del body
         const email = req.body?.email || req.body?.username;
-        if (email) {
+        if (email && typeof email === 'string') {
           return `email:${email.toLowerCase()}`;
         }
-        return opt.ipKeyGenerator(req);
+        
+        // Fallback a IP
+        return `ip:${getClientIp(req)}`;
       },
       
       handler: (req, res) => {
+        const clientIp = getClientIp(req);
         logger.warn('Auth rate limit exceeded', {
-          ip: req.ip,
+          ip: clientIp,
           email: req.body?.email,
           path: req.path,
           usingRedis: redisClient.isAvailable()

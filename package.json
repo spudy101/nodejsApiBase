@@ -56,8 +56,12 @@
     "db:migrate:undo:all": "pnpm -r db:migrate:undo:all",
     
     "comment9": "========== DATABASE - SEEDS ==========",
-    "db:seed": "pnpm -r db:seed",
-    "db:seed:undo": "pnpm -r db:seed:undo",
+    "db:seed": "pnpm run db:seed:kyc && pnpm run db:seed:notifications",
+    "db:seed:kyc": "pnpm --filter @abundbank/kyc-service db:seed",
+    "db:seed:notifications": "pnpm --filter @abundbank/notifications-service db:seed",
+    "db:seed:undo": "pnpm run db:seed:undo:kyc && pnpm run db:seed:undo:notifications",
+    "db:seed:undo:kyc": "pnpm --filter @abundbank/kyc-service db:seed:undo",
+    "db:seed:undo:notifications": "pnpm --filter @abundbank/notifications-service db:seed:undo",
     
     "comment10": "========== DATABASE - RESET ==========",
     "db:reset": "pnpm run db:migrate:undo:all && pnpm run db:migrate && pnpm run db:seed",

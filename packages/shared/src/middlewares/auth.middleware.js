@@ -11,9 +11,8 @@ let serverConfig = null;
 let encryptionConfig = null;
 
 /**
- * Authentication middleware
- * Validates JWT token from Cognito and encrypted timestamp
- * Attaches user object to req.user
+ * Authentication middleware - Simplified version using only Cognito
+ * No database dependencies, fully stateless
  */
 class AuthMiddleware {
   /**
@@ -26,12 +25,12 @@ class AuthMiddleware {
   }
 
   /**
-   * Middleware de autenticación básica (SIN role)
-   * Usar cuando solo necesitas que el usuario esté autenticado
+   * Middleware de autenticación básica
+   * Valida el token de Cognito y extrae la información del usuario del JWT
    */
   static authenticate = async (req, res, next) => {
     try {
-      await this._performAuthentication(req, false); // false = sin role
+      await this._performAuthentication(req);
       next();
     } catch (error) {
       if (error.isOperational) {
@@ -47,24 +46,23 @@ class AuthMiddleware {
 
   /**
    * Middleware de autenticación + validación de rol
-   * Usar cuando necesitas que el usuario tenga un rol específico
-   * @param {Array<string>} allowedRoles - Roles permitidos
+   * @param {Array<string>} allowedRoles - Roles permitidos (deben estar en el token de Cognito)
    */
   static requireRole(allowedRoles = []) {
     return async (req, res, next) => {
       try {
-        // Autentica Y trae el role
-        await this._performAuthentication(req, true); // true = con role
+        // Autentica primero
+        await this._performAuthentication(req);
 
-        // Valida el rol
-        if (!req.user.roleName) {
-          throw AppError.forbidden('Rol de usuario no encontrado');
+        // Valida el rol desde el token
+        if (!req.user.role) {
+          throw AppError.forbidden('Rol de usuario no encontrado en el token');
         }
 
-        if (!allowedRoles.includes(req.user.roleName)) {
+        if (!allowedRoles.includes(req.user.role)) {
           logger.warn('User attempted to access restricted resource', {
             userId: req.user.userId,
-            userRole: req.user.roleName,
+            userRole: req.user.role,
             allowedRoles,
             path: req.path,
           });
@@ -89,12 +87,12 @@ class AuthMiddleware {
   }
 
   /**
-   * Función privada que realiza la autenticación
+   * Función privada que realiza la autenticación usando SOLO Cognito
+   * Toda la información viene del JWT, sin consultas a DB
    * @param {Object} req - Express request
-   * @param {boolean} includeRole - Si debe incluir el role en la consulta
    * @private
    */
-  static async _performAuthentication(req, includeRole = false) {
+  static async _performAuthentication(req) {
     // 1. Extract and validate Authorization token
     const token = this.extractToken(req);
     if (!token) {
@@ -109,73 +107,53 @@ class AuthMiddleware {
     // 3. Verify JWT token with Cognito
     const decoded = await CognitoUtil.verifyToken(token);
 
-    // 4. Load user from database
-    const userRepository = require('../../kyc-service/src/infrastructure/database/repositories/user.repository');
-    
-    // Usar includeLevel según si necesitamos role o no
-    const includeLevel = includeRole ? 'auth' : 'minimal';
-    const user = await userRepository.findByCognitoSub(decoded.sub, includeLevel);
-
-    if (!user) {
-      logger.warn('User not found in database but has valid Cognito token', {
-        cognitoSub: decoded.sub,
-        username: decoded.username,
-      });
-      throw AppError.unauthorized('Usuario no encontrado');
-    }
-
-    // 5. Validate user status
-    if (!user.is_active) {
-      logger.warn('Inactive user attempted to authenticate', {
-        userId: user.user_id,
-        username: user.username,
-      });
-      throw AppError.forbidden('Cuenta inactiva o suspendida');
-    }
-
-    // 6. Build and attach user object to request
-    req.user = this.buildUserObject(user, decoded, includeRole);
+    // 4. Build user object from JWT claims (sin DB)
+    req.user = this.buildUserObjectFromToken(decoded);
 
     logger.debug('User authenticated successfully', {
       userId: req.user.userId,
       username: req.user.username,
-      roleName: req.user.roleName || 'N/A',
+      role: req.user.role || 'N/A',
     });
   }
 
   /**
-   * Build user object to attach to req.user
-   * @param {Object} user - User from database
+   * Build user object from Cognito JWT claims
+   * Toda la info viene del token, sin consultar DB
+   * 
+   * IMPORTANTE: Al hacer login/register en el servicio KYC,
+   * debes agregar estos claims al token de Cognito:
+   * - custom:user_id
+   * - custom:person_id
+   * - custom:role
+   * - custom:first_name
+   * - custom:last_name
+   * - custom:national_id
+   * 
    * @param {Object} decoded - Decoded JWT payload from Cognito
-   * @param {boolean} includeRole - Si debe incluir el roleName
    * @returns {Object} - User object
    */
-  static buildUserObject(user, decoded, includeRole = false) {
-    const userObj = {
-      userId: user.user_id,
-      username: user.username,
-      firstName: user.person?.first_name,
-      lastName: user.person?.last_name,
-      nationalId: user.person?.national_id,
-
-      cognitoSub: user.cognito_sub,
-      cognitoUsername: user.cognito_username,
-      personId: user.person_id,
-      roleId: user.role_id,
-      totpEnabled: user.totp_enabled,
-      passwordHash: user.password_hash,
-
-      // JWT info
+  static buildUserObjectFromToken(decoded) {
+    return {
+      // Información estándar de Cognito
+      cognitoSub: decoded.sub,
+      username: decoded['cognito:username'] || decoded.username,
+      email: decoded.email,
+      emailVerified: decoded.email_verified,
+      
+      // Custom attributes (debes agregarlos en Cognito al crear el usuario)
+      userId: decoded['custom:user_id'],
+      personId: decoded['custom:person_id'],
+      role: decoded['custom:role'],
+      firstName: decoded['custom:first_name'],
+      lastName: decoded['custom:last_name'],
+      nationalId: decoded['custom:national_id'],
+      
+      // JWT metadata
       tokenIat: decoded.iat,
       tokenExp: decoded.exp,
+      tokenIssuer: decoded.iss,
     };
-
-    // Solo agregar roleName si se incluyó en la consulta
-    if (includeRole && user.role) {
-      userObj.roleName = user.role.name;
-    }
-
-    return userObj;
   }
 
   /**
@@ -353,7 +331,7 @@ class AuthMiddleware {
         });
       }
 
-      req.externalService = 'zapsign-webhook';
+      req.externalService = 'webhook-external';
       
       next();
     } catch (error) {

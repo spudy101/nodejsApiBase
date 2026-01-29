@@ -12,6 +12,11 @@ const {
   httpLogger
 } = require('@abundbank/shared');
 
+const authLoginRoutes = require('./api/routes/auth-login.routes');
+const authRegisterRoutes = require('./api/routes/auth-register.routes');
+const personRoutes = require('./api/routes/person.routes');
+const profileRoutes = require('./api/routes/profile.routes');
+
 class KycApp {
   constructor() {
     this.app = express();
@@ -68,6 +73,12 @@ class KycApp {
         correlationId: req.correlationId,
       });
     });
+
+    this.app.use('/api/auth', authLoginRoutes);
+    this.app.use('/api/auth', authRegisterRoutes);
+    this.app.use('/api/kyc', personRoutes);
+    this.app.use('/api/kyc', profileRoutes);
+
   }
 
   setupErrorHandlers() {

@@ -6,6 +6,9 @@ const { createSequelizeInstance } = require('./src/config/sequelizeFactory');
 // ========== Constants ==========
 const constants = require('./src/constants');
 
+// ========== Repositories ==========
+const BaseRepository = require('./src/repositories/base.repository');
+
 // ========== Utils (Singletons - ya inicializados) ==========
 const AppError = require('./src/utils/appError.util');
 const ApiResponse = require('./src/utils/response.util');
@@ -46,6 +49,8 @@ module.exports = {
   
   // Constants
   ...constants,
+
+  BaseRepository,
   
   // Utils (instancias singleton con minúscula para consistencia)
   AppError,

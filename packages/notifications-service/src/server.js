@@ -92,6 +92,7 @@ logger.info('');
 // ============================================
 const app = require('./app');
 const db = require('./infrastructure/database');
+const NotificationWorker = require('./workers/notification.worker');
 
 class KycServer {
   constructor() {
@@ -126,6 +127,14 @@ class KycServer {
       await db.sequelize.authenticate();
       logger.info('✅ Database connection established');
       logger.info(`📊 Models loaded: ${Object.keys(db).filter(k => !k.startsWith('_') && k !== 'sequelize' && k !== 'Sequelize').length}`);
+
+      // Start notification workers if enabled
+      if (config.workers.enabled) {
+        NotificationWorker.iniciar();
+        logger.info('✅ workers enabled');
+      } else {
+        logger.info('ℹ️ workers disabled');
+      }
 
       // Start HTTP server
       this.server = app.listen(this.port, this.host, () => {

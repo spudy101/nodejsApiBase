@@ -31,10 +31,6 @@ module.exports = {
   USER_ROLES: {
     USER: 'user',
     USER_VERIFIED: 'user_verified',
-    USER_MILITANT: 'militante',
-    USER_CANDIDATO: 'candidato',
-    USER_ELECTO: 'electo',
-    MODERATOR: 'moderator',
     ADMIN: 'admin'
   },
 

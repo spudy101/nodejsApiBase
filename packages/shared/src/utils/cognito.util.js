@@ -10,6 +10,8 @@ const {
   GlobalSignOutCommand,
   GetUserCommand,
   AdminDeleteUserCommand,
+  AdminUpdateUserAttributesCommand, // ← NUEVO
+  AdminGetUserCommand, // ← NUEVO
 } = require('@aws-sdk/client-cognito-identity-provider');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
 const { logger } = require('./logger.util');
@@ -327,6 +329,101 @@ class CognitoUtil {
       });
       throw error;
     }
+  }
+
+  // =====================================================
+  // NUEVOS MÉTODOS PARA CUSTOM ATTRIBUTES
+  // =====================================================
+
+  /**
+   * Actualizar custom attributes de un usuario (requiere permisos admin)
+   * @param {string} username - Username en Cognito
+   * @param {object} attributes - Objeto con los attributes a actualizar
+   * 
+   * Ejemplo:
+   * await CognitoUtil.adminUpdateUserAttributes('john_doe', {
+   *   'custom:user_id': '123',
+   *   'custom:role': 'ADMIN',
+   *   'custom:first_name': 'John'
+   * });
+   */
+  async adminUpdateUserAttributes(username, attributes) {
+    this._checkInitialized();
+
+    // Convertir objeto a formato de Cognito
+    const userAttributes = Object.entries(attributes).map(([key, value]) => ({
+      Name: key,
+      Value: String(value),
+    }));
+
+    const command = new AdminUpdateUserAttributesCommand({
+      UserPoolId: this.userPoolId,
+      Username: username,
+      UserAttributes: userAttributes,
+    });
+
+    try {
+      await this.client.send(command);
+      logger.info('User attributes updated successfully', {
+        username,
+        attributes: Object.keys(attributes),
+      });
+      return true;
+    } catch (error) {
+      logger.error('Error updating user attributes', {
+        username,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener información completa del usuario (requiere permisos admin)
+   * @param {string} username - Username en Cognito
+   * @returns {object} - User data incluyendo todos los attributes
+   */
+  async adminGetUser(username) {
+    this._checkInitialized();
+
+    const command = new AdminGetUserCommand({
+      UserPoolId: this.userPoolId,
+      Username: username,
+    });
+
+    try {
+      const response = await this.client.send(command);
+      logger.info('User data retrieved successfully', { username });
+      return response;
+    } catch (error) {
+      logger.error('Error getting user data', {
+        username,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Helper: Actualizar custom attributes después del login
+   * Esto hace que el PRÓXIMO token tenga los attributes actualizados
+   * 
+   * @param {string} username - Username en Cognito
+   * @param {object} user - User object de la DB con toda la info
+   */
+  async updateUserCustomAttributes(username, user) {
+    this._checkInitialized();
+
+    const attributes = {
+      'custom:user_id': String(user.user_id),
+      'custom:person_id': String(user.person_id),
+      'custom:role': user.role?.name || 'USER',
+      'custom:first_name': user.person?.first_name || '',
+      'custom:last_name': user.person?.last_name || '',
+      'custom:national_id': user.person?.national_id || '',
+    };
+
+    return this.adminUpdateUserAttributes(username, attributes);
   }
 }
 
