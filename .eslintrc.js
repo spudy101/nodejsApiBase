@@ -1,20 +1,30 @@
-const { server } = require('./shared/constants');
-
 module.exports = {
   env: {
     node: true,
     es2021: true,
-    jest: true
+    jest: true,
   },
-  extends: ['eslint:recommended'],
+  extends: [
+    'airbnb-base',
+  ],
   parserOptions: {
     ecmaVersion: 'latest',
-    sourceType: 'module'
+    sourceType: 'module',
   },
   rules: {
-    'no-console': server.nodeEnv === 'production' ? 'warn' : 'off',
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    'prefer-const': 'error',
-    'no-var': 'error'
-  }
+    // Customizar reglas según el estilo del proyecto
+    'no-console': 'off', // Permitir console.log en desarrollo
+    'no-underscore-dangle': 'off', // Permitir _privateMethod
+    'class-methods-use-this': 'off', // No forzar uso de this
+    'consistent-return': 'off',
+    'no-param-reassign': ['error', { props: false }],
+    'max-len': ['error', { code: 120, ignoreComments: true }],
+    'import/no-extraneous-dependencies': ['error', {
+      devDependencies: [
+        '**/*.test.js',
+        '**/*.spec.js',
+        '**/tests/**',
+      ],
+    }],
+  },
 };

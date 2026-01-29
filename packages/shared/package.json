@@ -1,0 +1,33 @@
+{
+  "name": "@abundbank/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities, middlewares, and configuration",
+  "main": "src/index.js",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Shared library - no dev server'",
+    "build": "echo 'No build step required'",
+    "test": "jest",
+    "lint": "eslint src --ext .js",
+    "lint:fix": "eslint src --ext .js --fix"
+  },
+  "dependencies": {
+    "sequelize": "^6.37.7",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
+    "ioredis": "^5.8.2",
+    "winston": "^3.11.0",
+    "helmet": "^8.1.0",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.1.5",
+    "dotenv": "^17.2.3",
+    "@aws-sdk/client-s3": "^3.972.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.966.0",
+    "aws-jwt-verify": "^5.1.1",
+    "winston-daily-rotate-file": "^5.0.0",
+    "node-cache": "^5.1.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

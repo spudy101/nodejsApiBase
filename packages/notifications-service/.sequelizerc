@@ -1,0 +1,9 @@
+// packages/notifications-service/.sequelizerc
+const path = require('path');
+
+module.exports = {
+  'config': path.resolve(__dirname, 'database.config.js'),
+  'models-path': path.resolve(__dirname, 'src', 'infrastructure', 'database', 'models'),
+  'seeders-path': path.resolve(__dirname, 'seeders'),
+  'migrations-path': path.resolve(__dirname, 'migrations')
+};
