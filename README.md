@@ -29,38 +29,92 @@ API base construida con Node.js, Express, Sequelize y PostgreSQL. Incluye autent
 Crea un archivo `.env` en la raíz del proyecto basándote en `.env.example`. Configura las siguientes variables:
 
 ```ini
-# Server
-NODE_ENV=development      # Entorno: development, test, create-vite-appproduction
-PORT=3000                 # Puerto del servidor
+# ==============================================
+# SERVER
+# ==============================================
+NODE_ENV=development           # development | production | test
+PORT=4000
+HOST=localhost
 
-# API
-API_PREFIX=/api/v1       # Prefijo global para las rutas
-
+# ==============================================
 # CORS
-CORS_ORIGIN=*            # Orígenes permitidos (usar dominio específico en producción)
+# ==============================================
+CORS_ORIGIN=*
+# ⚠️  En producción usar orígenes explícitos:
+# CORS_ORIGIN=https://tuapp.com,https://admin.tuapp.com
 
-# Database
-DB_HOST=localhost        # Host de la base de datos
-DB_PORT=5432             # Puerto de PostgreSQL
-DB_NAME=tu_base_datos    # Nombre de la base de datos principal
-DB_USER=tu_usuario       # Usuario de la base de datos
-DB_PASSWORD=tu_password  # Contraseña de la base de datos
-DB_DIALECT=postgres      # Dialecto (postgres)
-DB_SCHEMA=public         # Esquema de la base de datos
+# ==============================================
+# DATABASE — PostgreSQL [REQUERIDO]
+# ==============================================
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=
+DB_DIALECT=postgres
+DB_SCHEMA=aerolinea
+DB_LOGGING=false
+# Nota: todas las tablas llegan a este esquema.
+# En el futuro se puede seccionar por esquema para simular microservicios.
 
-# JWT
-JWT_SECRET=tu_secret_super_seguro_cambialo_en_produccion # Clave secreta para firmar tokens
-JWT_EXPIRES_IN=24h       # Tiempo de expiración del token
+# ==============================================
+# REDIS CACHE [OPCIONAL]
+# Si no se configura, el sistema usa caché en memoria local
+# ==============================================
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_URL=
 
-# Crypto
-ENCRYPTION_KEY=tu_clave_super_segura_cambiala_en_produccion # Clave para encriptación de datos sensibles
+# ==============================================
+# ENCRYPTION [REQUERIDO]
+# Para generar claves: node ./shared/utils/generateKeys.util.js
+# ==============================================
+AES_KEY=
+AES_IV=
+ENCRYPTION_ALGORITHM=aes-256-cbc
+EXTERNAL_API_KEYS=
 
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000 # Ventana de tiempo en ms (15 minutos)
-RATE_LIMIT_MAX_REQUESTS=100 # Máximo de peticiones por ventana por IP
+# ==============================================
+# AWS [REQUERIDO]
+# ==============================================
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+BUCKET_NAME=
 
-# Logs
-LOG_LEVEL=debug          # Nivel de log (debug, info, error)
+# ==============================================
+# COGNITO [REQUERIDO]
+# ==============================================
+COGNITO_USER_POOL_ID=
+COGNITO_CLIENT_ID=
+
+# ==============================================
+# FRONTEND URLs [REQUERIDO]
+# ==============================================
+FRONTEND_RESET_URL=http://localhost:3000/auth/reset
+
+# ==============================================
+# NOTIFICATIONS [OPCIONAL]
+# El sistema funciona sin estas variables, solo no notificará
+# ==============================================
+SNS_PLATFORM_ARN_IOS=
+SNS_PLATFORM_ARN_ANDROID=
+SES_FROM_EMAIL=
+LOGO_URL=
+ADMIN_EMAIL=
+
+# ==============================================
+# LOGGING
+# ==============================================
+LOG_LEVEL=info                 # debug | info | warn | error
+
+# ==============================================
+# WORKERS
+# ==============================================
+ENABLE_WORKERS=true
+
 ```
 
 ## Base de Datos
@@ -127,62 +181,5 @@ La documentación interactiva generado con Swagger está disponible en:
 
 ### Endpoints Principales
 
-#### General
-
-- `GET /`: Mensaje de bienvenida y lista de endpoints principales.
-- `GET /api/v1/health`: Estado del servicio (Health check).
-
-#### Autenticación (Auth)
-
-- `POST /api/v1/auth/register`: Registrar nuevo usuario.
-- `POST /api/v1/auth/login`: Iniciar sesión (retorna JWT).
-- `GET /api/v1/auth/profile`: Obtener perfil del usuario autenticado.
-- `PUT /api/v1/auth/profile`: Actualizar perfil.
-- `PUT /api/v1/auth/change-password`: Cambiar contraseña.
-- `DELETE /api/v1/auth/account`: Desactivar cuenta.
-
-#### Usuarios (Users) - Requiere Rol Admin
-
-- `GET /api/v1/users`: Listar usuarios (paginado).
-- `GET /api/v1/users/stats`: Estadísticas de usuarios.
-- `GET /api/v1/users/:id`: Obtener usuario por ID.
-- `PUT /api/v1/users/:id/role`: Cambiar rol de usuario.
-- `PUT /api/v1/users/:id/activate`: Activar usuario.
-- `PUT /api/v1/users/:id/deactivate`: Desactivar usuario.
-- `DELETE /api/v1/users/:id`: Eliminar usuario permanentemente.
-
-#### Productos (Products)
-
-**Público:**
-
-- `GET /api/v1/products`: Listar productos.
-- `GET /api/v1/products/:id`: Ver detalle de producto.
-- `GET /api/v1/products/category/:category`: Productos por categoría.
-
-**Admin:**
-
-- `GET /api/v1/products/stats`: Estadísticas de productos.
-- `POST /api/v1/products`: Crear producto.
-- `PUT /api/v1/products/:id`: Actualizar producto.
-- `PATCH /api/v1/products/:id/stock`: Actualizar stock.
-- `DELETE /api/v1/products/:id`: Eliminar producto (soft delete).
-- `DELETE /api/v1/products/:id/permanent`: Eliminar producto permanentemente.
-
 ## Estructura del Proyecto
-
-```
-nodejsBase/
-├─ config/         # Configuraciones (DB, Swagger)
-├─ migrations/         # Migraciones de la base de datos
-├─ seeds/         # Semillas de la base de datos
-├─ tests/         # Pruebas unitarias y de integración
-├─ src/
-   ├── controllers/    # Lógica de los endpoints (Handlers)
-   ├── middlewares/    # Middlewares (Auth, Error Handler, Validator)
-   ├── models/         # Modelos Sequelize
-   ├── routes/         # Definición de rutas
-   ├── services/       # Lógica de negocio
-   ├── utils/          # Utilidades y Helpers
-   └── validators/     # Validaciones con express-validator
-```
 
